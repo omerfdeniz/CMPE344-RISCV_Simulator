@@ -7,11 +7,38 @@ class Simulator:
         self.PC = 0
         self.CLOCK = 0
 
-        self.IF_PHASE = None
-        self.ID_PHASE = None
-        self.EX_PHASE = None
-        self.MEM_PHASE = None
-        self.WB_PHASE = None
+        self.PHASE_INSTRUCTIONS = {'IF': None, 'ID': None, 'EX': None, 'MEM': None, 'WB': None}
+
+        self.IF_ID = None
+        self.ID_EX = None
+        self.EX_MEM = None
+        self.MEM_WB = None
+        self.IF_ID = None
 
     def run(self):
-        pass
+        # while PC is valid and not all PHASES are None
+        while(self.PC <= len(self.INSTRUCTION_MEMORY) or sum(self.PHASES.values()) != 0):
+            if self.PHASE_INSTRUCTIONS['WB']:
+                self.REGISTERS[]
+                pass
+            if self.PHASE_INSTRUCTIONS['MEM']:
+                pass
+            if self.PHASE_INSTRUCTIONS['EX']:
+                pass
+            if self.PHASE_INSTRUCTIONS['ID']:
+                opcode = self.PHASE_INSTRUCTIONS['ID'][25:]
+                self.PHASE_INSTRUCTIONS['ID'].set_control_values(opcode)
+                pass
+
+            self.PHASE_INSTRUCTIONS['WB'] = self.PHASE_INSTRUCTIONS['MEM']
+            self.PHASE_INSTRUCTIONS['MEM'] = self.PHASE_INSTRUCTIONS['EX']
+            self.PHASE_INSTRUCTIONS['EX'] = self.PHASE_INSTRUCTIONS['ID']
+            self.PHASE_INSTRUCTIONS['ID'] = self.PHASE_INSTRUCTIONS['IF']
+
+            if self.PC <= len(self.INSTRUCTION_MEMORY):
+                self.PHASE_INSTRUCTIONS['IF'] = self.INSTRUCTION_MEMORY[self.PC]
+            else:
+                self.PHASE_INSTRUCTIONS['IF'] = None
+
+            if self.PC >= len(self.INSTRUCTION_MEMORY) and :
+                return
