@@ -1,4 +1,6 @@
-with open("program.txt", 'r') as f:
-    instructions = [line.strip() for line in f.readlines()]
+import sys
+from simulator import Simulator
+program_path = sys.argv[1]
 
-print(instructions)
+simulator = Simulator(program_path)
+simulator.run()
