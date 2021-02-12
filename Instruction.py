@@ -73,64 +73,65 @@ def get_instructions(program_path):
                 'rd': rd, 
                 'opcode': '0110011'
                 }
+        """
+        TO BE COMPLETED
         elif instruction_name == 'ld':
         elif instruction_name == 'sd':
         elif instruction_name == 'beq'
 
-        instructions.append(Instruction(instruction_fields))
+        instructions.append(Instruction(instruction_fields))"""
     return instructions
 
+def perform_ALU_operation(ALU_control, param1, param2):
+    pass
 
-class Instruction:
-    def __init__(self, register_fields):
-        self.register_fields = register_fields
-
-    def set_control_values(self, opcode):
-        R_TYPE_OPCODE = "0110011" # add, sub, and, or
-        I_TYPE_OPCODE = "0000011" # ld
-        S_TYPE_OPCODE = "0100011" # sd
-        SB_TYPE_OPCODE = "1100111" # beq
-        control_values = {} # fill this
-        if (opcode == R_TYPE_OPCODE):
-            control_values = {
-                'ALUSrc': 0,
-                'MemToReg': 0,
-                'RegWrite': 1,
-                'MemRead': 0,
-                'MemWrite': 0,
-                'Branch': 0,
-                'ALUOp1': 1,
-                'ALUOp0': 0
-            }
-        elif (opcode == I_TYPE_OPCODE):
-            control_values = {
-                'ALUSrc': 1,
-                'MemToReg': 1,
-                'RegWrite': 1,
-                'MemRead': 1,
-                'MemWrite': 0,
-                'Branch': 0,
-                'ALUOp1': 0,
-                'ALUOp0': 0
-            }
-        elif (opcode == S_TYPE_OPCODE):
-            control_values = {
-                'ALUSrc': 1,
-                'RegWrite': 0,
-                'MemRead': 0,
-                'MemWrite': 1,
-                'Branch': 0,
-                'ALUOp1': 0,
-                'ALUOp0': 0
-            }
-        elif (opcode == SB_TYPE_OPCODE):
-            control_values = {
-                'ALUSrc': 0,
-                'RegWrite': 0,
-                'MemRead': 0,
-                'MemWrite': 0,
-                'Branch': 1,
-                'ALUOp1': 0,
-                'ALUOp0': 1
-            }       
-        self.control_values = control_values
+def get_control_values(instruction):
+    opcode = instruction['opcode']
+    R_TYPE_OPCODE = "0110011" # add, sub, and, or
+    I_TYPE_OPCODE = "0000011" # ld
+    S_TYPE_OPCODE = "0100011" # sd
+    SB_TYPE_OPCODE = "1100111" # beq
+    control_values = {} # fill this
+    if (opcode == R_TYPE_OPCODE):
+        control_values = {
+            'ALUSrc': 0,
+            'MemToReg': 0,
+            'RegWrite': 1,
+            'MemRead': 0,
+            'MemWrite': 0,
+            'Branch': 0,
+            'ALUOp1': 1,
+            'ALUOp0': 0
+        }
+    elif (opcode == I_TYPE_OPCODE):
+        control_values = {
+            'ALUSrc': 1,
+            'MemToReg': 1,
+            'RegWrite': 1,
+            'MemRead': 1,
+            'MemWrite': 0,
+            'Branch': 0,
+            'ALUOp1': 0,
+            'ALUOp0': 0
+        }
+    elif (opcode == S_TYPE_OPCODE):
+        control_values = {
+            'ALUSrc': 1,
+            'RegWrite': 0,
+            'MemRead': 0,
+            'MemWrite': 1,
+            'Branch': 0,
+            'ALUOp1': 0,
+            'ALUOp0': 0
+        }
+    elif (opcode == SB_TYPE_OPCODE):
+        control_values = {
+            'ALUSrc': 0,
+            'RegWrite': 0,
+            'MemRead': 0,
+            'MemWrite': 0,
+            'Branch': 1,
+            'ALUOp1': 0,
+            'ALUOp0': 1
+        }       
+    self.control_values = control_values
