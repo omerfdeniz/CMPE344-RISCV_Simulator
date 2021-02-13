@@ -11,17 +11,29 @@ class Simulator:
         self.ID_EX = {'control': get_control_values("NOP")}
         self.EX_MEM = {'control': get_control_values("NOP")}
         self.MEM_WB = {'control': get_control_values("NOP")}
-        self.IF_ID = {'control': get_control_values("NOP")}
-
+    
+    def print_status(self):
+        print(f"-----STATUS AT THE BEGINNING OF CLOCK={self.CLOCK}-----")
+        for i, val in enumerate(self.REGISTERS):
+            print(f"x{i}: {val}")
     def run(self):
+        ALL_STAGES_NOP = True
         # while PC is valid and not all PHASES are None
-        while(self.PC <= len(self.INSTRUCTION_MEMORY)):
+        while(self.PC <= len(self.INSTRUCTION_MEMORY) and not ALL_STAGES_NOP):
+            self.print_status()
             self.run_WB()
             self.run_EX()
             self.run_MEM()
             self.run_ID()
             self.run_IF()
             self.CLOCK += 1
+            # if all registers are full of control values of zero
+            if ((self.IF_ID['control'] == self.ID_EX['control'] and self.ID_EX['control'] == self.EX_MEM['control']) and
+                (self.EX_MEM['control'] == self.MEM_WB['control'] and self.MEM_WB['control'] == get_control_values('NOP'))):
+                ALL_STAGES_NOP = True
+            else:
+                ALL_STAGES_NOP = False
+                
 
     def run_WB(self):
         # read from stage registers
@@ -48,6 +60,11 @@ class Simulator:
         # operate
         if control['Branch'] and ALU_zero: # if a branch instruction and rs1_data-rs2_data==0
             self.PC = PC_plus_OFFSET
+            # flush instructions in the IF, ID, EX when MEM is executing
+            self.IF_ID['control'] = get_alu_control('NOP')
+            self.ID_EX['control'] = get_alu_control('NOP')
+            self.EX_MEM['control'] = get_alu_control('NOP')
+
         else:
             self.PC += 1
 
