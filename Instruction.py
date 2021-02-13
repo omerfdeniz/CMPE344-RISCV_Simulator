@@ -1,10 +1,12 @@
-R_TYPE_OPCODE = "0110011" # add, sub, and, or
-I_TYPE_OPCODE = "0000011" # ld
-S_TYPE_OPCODE = "0100011" # sd
-SB_TYPE_OPCODE = "1100111" # beq
+R_TYPE_OPCODE = "0110011"  # add, sub, and, or
+I_TYPE_OPCODE = "0000011"  # ld
+S_TYPE_OPCODE = "0100011"  # sd
+SB_TYPE_OPCODE = "1100111"  # beq
 
 INSTRUCTION_LEN = 64
-### TODO: HEPSINDE tüm fieldlar olsun, gerekirse None olsun
+# TODO: HEPSINDE tüm fieldlar olsun, gerekirse None olsun
+
+
 def get_instructions(program_path):
     with open(program_path, 'r') as f:
         instruction_lines = [line.strip() for line in f.readlines()]
@@ -18,7 +20,8 @@ def get_instructions(program_path):
 
         if instruction_name == 'add':
             # get the register names from assembly instruction string
-            regs = instruction[instruction.find(' ') + 1:].replace(' ', '').split(',')
+            regs = instruction[instruction.find(
+                ' ') + 1:].replace(' ', '').split(',')
 
             # fill the correct fields for this instruction
             rd = int(regs[0][1:])
@@ -27,14 +30,16 @@ def get_instructions(program_path):
             intstruction_fields = {
                 'funct7': '0000000',
                 'rs2': rs2,
-                'rs1': rs1, 
-                'funct3': '000', 
-                'rd': rd, 
-                'opcode': '0110011'
-                }
+                'rs1': rs1,
+                'funct3': '000',
+                'rd': rd,
+                'opcode': '0110011',
+                'immed': None
+            }
         elif instruction_name == 'and':
             # get the register names from assembly instruction string
-            regs = instruction[instruction.find(' ') + 1:].replace(' ', '').split(',')
+            regs = instruction[instruction.find(
+                ' ') + 1:].replace(' ', '').split(',')
 
             # fill the correct fields for this instruction
             rd = int(regs[0][1:])
@@ -43,14 +48,16 @@ def get_instructions(program_path):
             intstruction_fields = {
                 'funct7': '0000000',
                 'rs2': rs2,
-                'rs1': rs1, 
-                'funct3': '111', 
-                'rd': rd, 
-                'opcode': '0110011'
-                }
+                'rs1': rs1,
+                'funct3': '111',
+                'rd': rd,
+                'opcode': '0110011',
+                'immed': None
+            }
         elif instruction_name == 'or':
             # get the register names from assembly instruction string
-            regs = instruction[instruction.find(' ') + 1:].replace(' ', '').split(',')
+            regs = instruction[instruction.find(
+                ' ') + 1:].replace(' ', '').split(',')
 
             # fill the correct fields for this instruction
             rd = int(regs[0][1:])
@@ -59,14 +66,16 @@ def get_instructions(program_path):
             intstruction_fields = {
                 'funct7': '0000000',
                 'rs2': rs2,
-                'rs1': rs1, 
-                'funct3': '110', 
-                'rd': rd, 
-                'opcode': '0110011'
-                }
+                'rs1': rs1,
+                'funct3': '110',
+                'rd': rd,
+                'opcode': '0110011',
+                'immed': None
+            }
         elif instruction_name == 'sub':
             # get the register names from assembly instruction string
-            regs = instruction[instruction.find(' ') + 1:].replace(' ', '').split(',')
+            regs = instruction[instruction.find(
+                ' ') + 1:].replace(' ', '').split(',')
 
             # fill the correct fields for this instruction
             rd = int(regs[0][1:])
@@ -75,43 +84,104 @@ def get_instructions(program_path):
             intstruction_fields = {
                 'funct7': '0100000',
                 'rs2': rs2,
-                'rs1': rs1, 
-                'funct3': '000', 
-                'rd': rd, 
-                'opcode': '0110011'
-                }
-        """
-        TO BE COMPLETED
+                'rs1': rs1,
+                'funct3': '000',
+                'rd': rd,
+                'opcode': '0110011',
+                'immed': None
+            }
         elif instruction_name == 'ld':
-        elif instruction_name == 'sd':
-        elif instruction_name == 'beq'
+            # get the register names from assembly instruction string
+            regs = instruction[instruction.find(
+                ' ') + 1:].replace(' ', '').split(',')
 
-        instructions.append(Instruction(instruction_fields))"""
+            # fill the correct fields for this instruction
+            rd = int(regs[0][1:])
+            # find rs1 by looking inside the parentheses after the immediate
+            rs1 = int(regs[1][regs[1].find('(') + 1: regs[1].find(')')][1:])
+            # find immed by looking at the string just before the parentheses
+            immed = int(regs[1][:regs[1].find('(')])
+
+            intstruction_fields = {
+                'funct7': None,
+                'rs2': None,
+                'rs1': rs1,
+                'funct3': '011',
+                'rd': rd,
+                'opcode': '0000011',
+                'immed': immed
+            }
+        elif instruction_name == 'sd':
+            # get the register names from assembly instruction string
+            regs = instruction[instruction.find(
+                ' ') + 1:].replace(' ', '').split(',')
+
+            # fill the correct fields for this instruction
+            rs1 = int(regs[0][1:])
+            # find rs2 by looking inside the parentheses after the immediate
+            rs2 = int(regs[1][regs[1].find('(') + 1: regs[1].find(')')][1:])
+            # find immed by looking at the string just before the parentheses
+            immed = int(regs[1][:regs[1].find('(')])
+
+            intstruction_fields = {
+                'funct7': None,
+                'rs2': rs2,
+                'rs1': rs1,
+                'funct3': '111',
+                'rd': None,
+                'opcode': '0100011',
+                'immed': immed
+            }
+        elif instruction_name == 'beq':
+            # get the register names from assembly instruction string
+            regs = instruction[instruction.find(
+                ' ') + 1:].replace(' ', '').split(',')
+
+            # fill the correct fields for this instruction
+            rs1 = int(regs[0][1:])
+            rs2 = int(regs[1][1:])
+            # immediate is assummed to be given as an offset (TALK ABOUT THIS LATER)
+            immed = int(regs[2])
+
+            intstruction_fields = {
+                'funct7': None,
+                'rs2': rs2,
+                'rs1': rs1,
+                'funct3': '000',
+                'rd': None,
+                'opcode': '1100111',
+                'immed': immed
+            }
+        instructions.append(Instruction(instruction_fields))
     return instructions
+
 
 def perform_ALU_operation(ALU_control, param1, param2):
     pass
 
 
-#returns int
+# returns int
 def sign_extend(instruction):
     assert len(instruction['offset']) == 12
     sign_bit = instruction['offset'][0]
-    extended_offset = sign_bit * (INSTRUCTION_LEN - 12) + instruction['offset'][1:]
-    return int(extended_offset, 2) # "111" -> 7
+    extended_offset = sign_bit * \
+        (INSTRUCTION_LEN - 12) + instruction['offset'][1:]
+    return int(extended_offset, 2)  # "111" -> 7
 
-def get_alu_control(ALU_op, funct_for_alu_control): # used fig 4.12
+
+def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12
     if ALU_op == "00" or ALU_op == "01":
         return ALU_op + "00"
     else:
         if funct_for_alu_control[0] == "0" and funct_for_alu_control[1:] == "000":
-            return "0010" 
+            return "0010"
         elif funct_for_alu_control[0] == "1" and funct_for_alu_control[1:] == "000":
-            return "0110" 
+            return "0110"
         elif funct_for_alu_control[0] == "0" and funct_for_alu_control[1:] == "111":
-            return "0000" 
+            return "0000"
         else:
-            return "0001" 
+            return "0001"
+
 
 def get_control_values(instruction):
     if instruction == 'NOP':
@@ -126,7 +196,7 @@ def get_control_values(instruction):
             'ALUOp0': 0
         }
     opcode = instruction['opcode']
-    control_values = {} 
+    control_values = {}
     if (opcode == R_TYPE_OPCODE):
         control_values = {
             'ALUSrc': 0,
@@ -169,4 +239,4 @@ def get_control_values(instruction):
             'ALUOp1': 0,
             'ALUOp0': 1
         }
-    return control_values       
+    return control_values
