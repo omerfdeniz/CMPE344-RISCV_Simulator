@@ -16,18 +16,17 @@ def get_instructions(program_path):
     # according to its instruction type
     for instruction in instruction_lines:
         instruction_name = instruction.split(' ')[0]
-        intstruction_fields = {}
+        instruction_fields = {}
 
         if instruction_name == 'add':
             # get the register names from assembly instruction string
-            regs = instruction[instruction.find(
-                ' ') + 1:].replace(' ', '').split(',')
+            regs = instruction[instruction.find(' ') + 1:].replace(' ', '').split(',')
 
             # fill the correct fields for this instruction
             rd = int(regs[0][1:])
             rs1 = int(regs[1][1:])
             rs2 = int(regs[2][1:])
-            intstruction_fields = {
+            instruction_fields = {
                 'funct7': '0000000',
                 'rs2': rs2,
                 'rs1': rs1,
@@ -45,7 +44,7 @@ def get_instructions(program_path):
             rd = int(regs[0][1:])
             rs1 = int(regs[1][1:])
             rs2 = int(regs[2][1:])
-            intstruction_fields = {
+            instruction_fields = {
                 'funct7': '0000000',
                 'rs2': rs2,
                 'rs1': rs1,
@@ -63,7 +62,7 @@ def get_instructions(program_path):
             rd = int(regs[0][1:])
             rs1 = int(regs[1][1:])
             rs2 = int(regs[2][1:])
-            intstruction_fields = {
+            instruction_fields = {
                 'funct7': '0000000',
                 'rs2': rs2,
                 'rs1': rs1,
@@ -81,7 +80,7 @@ def get_instructions(program_path):
             rd = int(regs[0][1:])
             rs1 = int(regs[1][1:])
             rs2 = int(regs[2][1:])
-            intstruction_fields = {
+            instruction_fields = {
                 'funct7': '0100000',
                 'rs2': rs2,
                 'rs1': rs1,
@@ -102,7 +101,7 @@ def get_instructions(program_path):
             # find immed by looking at the string just before the parentheses
             immed = int(regs[1][:regs[1].find('(')])
 
-            intstruction_fields = {
+            instruction_fields = {
                 'funct7': None,
                 'rs2': None,
                 'rs1': rs1,
@@ -123,7 +122,7 @@ def get_instructions(program_path):
             # find immed by looking at the string just before the parentheses
             immed = int(regs[1][:regs[1].find('(')])
 
-            intstruction_fields = {
+            instruction_fields = {
                 'funct7': None,
                 'rs2': rs2,
                 'rs1': rs1,
@@ -143,7 +142,7 @@ def get_instructions(program_path):
             # immediate is assummed to be given as an offset (TALK ABOUT THIS LATER)
             immed = int(regs[2])
 
-            intstruction_fields = {
+            instruction_fields = {
                 'funct7': None,
                 'rs2': rs2,
                 'rs1': rs1,
@@ -162,11 +161,11 @@ def perform_ALU_operation(ALU_control, param1, param2):
         return param1 + param2
     elif ALU_control == '0110':
         # function SUB
-        return param1 - param 2
+        return param1 - param2
     elif ALU_control == '0000':
         # function AND
         return param1 & param2
-    elif ALU_control == '0001'
+    elif ALU_control == '0001':
         # function OR
         return param1 | param2
     else:
