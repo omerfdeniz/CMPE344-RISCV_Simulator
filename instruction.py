@@ -173,11 +173,13 @@ def perform_ALU_operation(ALU_control, param1, param2):
 
 
 # returns int
-def sign_extend(instruction):
-    assert len(instruction['offset']) == 12
-    sign_bit = instruction['offset'][0]
+def sign_extend(immed):
+    # if immed is none
+    if not immed:
+        return 0
+    sign_bit = immed[0]
     extended_offset = sign_bit * \
-        (INSTRUCTION_LEN - 12) + instruction['offset'][1:]
+        (INSTRUCTION_LEN - 12) + immed[1:]
     return int(extended_offset, 2)  # "111" -> 7
 
 
@@ -194,10 +196,19 @@ def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12
         else:
             return "0001"
 
+def get_nop_instruction():
+    return {
+                'funct7': '0000000',
+                'rs2': 1,
+                'rs1': 1,
+                'funct3': '000',
+                'rd': 1,
+                'opcode': '0000000',
+                'immed': "00000000000000" # 12 bit
+    }
 
-def get_control_values(instruction):
-    if instruction == 'NOP':
-        return {
+def get_nop_control():
+    return {
             'ALUSrc': 0,
             'MemToReg': 0,
             'RegWrite': 0,
@@ -207,6 +218,9 @@ def get_control_values(instruction):
             'ALUOp1': 0,
             'ALUOp0': 0
         }
+def get_control_values(instruction):
+    if instruction == get_nop_instruction():
+        return get_nop_control()
     opcode = instruction['opcode']
     control_values = {}
     if (opcode == R_TYPE_OPCODE):

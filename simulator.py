@@ -7,12 +7,17 @@ class Simulator:
         self.PC = 0
         self.CLOCK = 0
 
-        self.NOP_CONTROL = get_control_values("NOP") # all fields are 0
+        self.NOP_INSTRUCTION = get_nop_instruction()
+        self.NOP_CONTROL = get_nop_control() # all fields are 0
+        self.ALL_STAGES_NOP = True
 
-        self.IF_ID = {'control': self.NOP_CONTROL}
-        self.ID_EX = {'control': self.NOP_CONTROL}
-        self.EX_MEM = {'control': self.NOP_CONTROL}
-        self.MEM_WB = {'control': self.NOP_CONTROL}
+        self.IF_ID = {"PC": 0, "instruction": self.NOP_INSTRUCTION, "rs1": 1, "rs2": 1}
+        self.ID_EX = {"PC": 0, "rs1_data": 0, "rs2_data": 0, 
+            "imm_gen_offset": 0, "funct_for_alu_control": "0000", "rd": 0, 
+            "control": self.NOP_CONTROL, "rs1": 1, "rs2": 1}
+        self.EX_MEM = {"PC_plus_OFFSET": 0, "ALU_zero": 0, "ALU_result": 0, "rs2_data": 0, "rd": 0,
+            "control": self.NOP_CONTROL}
+        self.MEM_WB = {"read_from_memory": 0, "ALU_result": 0, "rd": 0, "control": self.NOP_CONTROL}
     
     def print_status(self):
         print(f"-----STATUS AT THE BEGINNING OF CLOCK = {self.CLOCK}-----")
@@ -21,29 +26,25 @@ class Simulator:
             print(f"x{i}: {val}",end=" ")
         print()
     def run(self):
-        ALL_STAGES_NOP = True
-        self.print_status()
-        # while PC is valid and not all PHASES are None
-        while(self.PC <= len(self.INSTRUCTION_MEMORY) or not ALL_STAGES_NOP):
+        # while PC is valid and not all PHASES are NOPs
+        while(self.PC < len(self.INSTRUCTION_MEMORY) or not self.ALL_STAGES_NOP):
             self.print_status()
             self.run_WB()
-            self.run_EX()
             self.run_MEM()
+            self.run_EX()
             self.run_ID()
             self.run_IF()
             #break
             self.CLOCK += 1
             # if all registers are full of control values of zero
-            if ((self.IF_ID['control'] == self.ID_EX['control'] and self.ID_EX['control'] == self.EX_MEM['control']) and
-                (self.EX_MEM['control'] == self.MEM_WB['control'] and self.MEM_WB['control'] == self.NOP_CONTROL)):
-                ALL_STAGES_NOP = True
+            if (self.ID_EX['control'] == self.EX_MEM['control'] and
+                self.EX_MEM['control'] == self.MEM_WB['control']) and self.MEM_WB['control'] == self.NOP_CONTROL:
+                self.ALL_STAGES_NOP = True
             else:
-                ALL_STAGES_NOP = False
-                
+                self.ALL_STAGES_NOP = False
+        
 
     def run_WB(self):
-        if self.MEM_WB['control'] == self.NOP_CONTROL:
-            return
         # read from stage registers
         control = self.MEM_WB['control'] # read control from previous stage
         read_from_memory = self.MEM_WB['read_from_memory']
@@ -57,8 +58,6 @@ class Simulator:
                 self.REGISTERS[rd] = ALU_result
 
     def run_MEM(self):
-        if self.MEM_WB['control'] == self.NOP_CONTROL:
-            return
         # read from stage registers
         control = self.EX_MEM['control'] # read control from previous stage
         PC_plus_OFFSET = self.EX_MEM['PC_plus_OFFSET']
@@ -71,14 +70,14 @@ class Simulator:
         if control['Branch'] and ALU_zero: # if a branch instruction and rs1_data-rs2_data==0
             self.PC = PC_plus_OFFSET
             # flush instructions in the IF, ID, EX when MEM is executing
-            self.IF_ID['control'] = get_alu_control('NOP')
-            self.ID_EX['control'] = get_alu_control('NOP')
-            self.EX_MEM['control'] = get_alu_control('NOP')
+            self.IF_ID['control'] = self.NOP_CONTROL
+            self.ID_EX['control'] = self.NOP_CONTROL
+            self.EX_MEM['control'] = self.NOP_CONTROL
 
         else:
             self.PC += 1
 
-        if control('MemWrite'): # sd, will write to memory
+        if control['MemWrite']: # sd, will write to memory
             self.MEMORY[ALU_result] = rs2_data
 
         read_from_memory = None
@@ -86,14 +85,9 @@ class Simulator:
             read_from_memory = self.MEMORY[ALU_result]
         
         # write to stage registers
-        self.MEM_WB['read_from_memory'] = read_from_memory
-        self.MEM_WB['ALU_result'] = ALU_result
-        self.MEM_WB['control'] = control # pass control to next stage
-        self.MEM_WB['rd'] = rd
+        self.MEM_WB = {"read_from_memory": read_from_memory, "ALU_result": ALU_result, "rd": rd, "control": control}
 
     def run_EX(self):
-        if self.MEM_WB['control'] == self.NOP_CONTROL:
-            return
         # read from stage registers
         control = self.ID_EX['control'] # read control from previous stage
         PC = self.ID_EX['PC']
@@ -123,7 +117,7 @@ class Simulator:
             and (self.EX_MEM['rd'] != 0) and (self.EX_MEM['rd'] == self.ID_EX['rs2'])) and (self.MEM_WB['rd'] == self.ID_EX['rs2'])):
             ForwardB = "01"
 
-        ALU_control = get_alu_control(control['ALU_Op1']+control['ALU_Op0'], funct_for_alu_control)
+        ALU_control = get_alu_control(control['ALUOp1']+control['ALUOp0'], funct_for_alu_control)
         PC_plus_OFFSET = PC + 2 * imm_gen_offset
         ALU_result = None
         if ForwardA == "00":
@@ -159,23 +153,17 @@ class Simulator:
         ALU_zero = ALU_result == 0
 
         # write to stage registers
-        self.EX_MEM['PC_plus_OFFSET'] = PC_plus_OFFSET
-        self.EX_MEM['ALU_zero'] = ALU_zero
-        self.EX_MEM['ALU_result'] = ALU_result
-        self.EX_MEM['rs2_data'] = rs2_data
-        self.EX_MEM['rd'] = rd
-        self.EX_MEM['control'] = control # pass control to next stage
+        self.EX_MEM = {"PC_plus_OFFSET": PC_plus_OFFSET, "ALU_zero": ALU_zero, 
+            "ALU_result": ALU_result, "rs2_data": rs2_data, "rd": rd, "control": control}
 
     def run_ID(self):
-        if self.MEM_WB['control'] == self.NOP_CONTROL:
-            return
         # read from stage registers
         instruction = self.IF_ID['instruction']
         PC = self.IF_ID['PC']
 
         # operate
         control = get_control_values(instruction) # calculate control
-        imm_gen_offset = sign_extend(instruction)
+        imm_gen_offset = sign_extend(instruction['immed'])
         rs1 = instruction['rs1']
         rs2 = instruction['rs2']
         rs1_data = self.REGISTERS[rs1]
@@ -196,12 +184,14 @@ class Simulator:
             self.ID_EX['rs2_data'] = rs2_data
             self.ID_EX['funct_for_alu_control'] = funct_for_alu_control
             self.ID_EX['rd'] = rd
-            self.ID_EX['rs1'] = rs1
-            self.ID_EX['rs2'] = rs2
+            self.ID_EX['rs1'] = rs1 # ????
+            self.ID_EX['rs2'] = rs2 # ????
 
     def run_IF(self):
         # write to stage registers
-        if self.PC <= len(self.INSTRUCTION_MEMORY):
+        if self.PC < len(self.INSTRUCTION_MEMORY):
             self.IF_ID['instruction'] = self.INSTRUCTION_MEMORY[self.PC]
-            print(self.IF_ID['instruction'])
+            self.IF_ID['PC'] = self.PC
+        else:
+            self.IF_ID['instruction'] = self.NOP_INSTRUCTION
             self.IF_ID['PC'] = self.PC
