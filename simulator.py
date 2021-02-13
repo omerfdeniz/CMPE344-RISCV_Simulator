@@ -7,35 +7,43 @@ class Simulator:
         self.PC = 0
         self.CLOCK = 0
 
-        self.IF_ID = {'control': get_control_values("NOP")}
-        self.ID_EX = {'control': get_control_values("NOP")}
-        self.EX_MEM = {'control': get_control_values("NOP")}
-        self.MEM_WB = {'control': get_control_values("NOP")}
+        self.NOP_CONTROL = get_control_values("NOP") # all fields are 0
+
+        self.IF_ID = {'control': self.NOP_CONTROL}
+        self.ID_EX = {'control': self.NOP_CONTROL}
+        self.EX_MEM = {'control': self.NOP_CONTROL}
+        self.MEM_WB = {'control': self.NOP_CONTROL}
     
     def print_status(self):
-        print(f"-----STATUS AT THE BEGINNING OF CLOCK={self.CLOCK}-----")
+        print(f"-----STATUS AT THE BEGINNING OF CLOCK = {self.CLOCK}-----")
+        print(f"PC: {self.PC}")
         for i, val in enumerate(self.REGISTERS):
-            print(f"x{i}: {val}")
+            print(f"x{i}: {val}",end=" ")
+        print()
     def run(self):
         ALL_STAGES_NOP = True
+        self.print_status()
         # while PC is valid and not all PHASES are None
-        while(self.PC <= len(self.INSTRUCTION_MEMORY) and not ALL_STAGES_NOP):
+        while(self.PC <= len(self.INSTRUCTION_MEMORY) or not ALL_STAGES_NOP):
             self.print_status()
             self.run_WB()
             self.run_EX()
             self.run_MEM()
             self.run_ID()
             self.run_IF()
+            #break
             self.CLOCK += 1
             # if all registers are full of control values of zero
             if ((self.IF_ID['control'] == self.ID_EX['control'] and self.ID_EX['control'] == self.EX_MEM['control']) and
-                (self.EX_MEM['control'] == self.MEM_WB['control'] and self.MEM_WB['control'] == get_control_values('NOP'))):
+                (self.EX_MEM['control'] == self.MEM_WB['control'] and self.MEM_WB['control'] == self.NOP_CONTROL)):
                 ALL_STAGES_NOP = True
             else:
                 ALL_STAGES_NOP = False
                 
 
     def run_WB(self):
+        if self.MEM_WB['control'] == self.NOP_CONTROL:
+            return
         # read from stage registers
         control = self.MEM_WB['control'] # read control from previous stage
         read_from_memory = self.MEM_WB['read_from_memory']
@@ -49,6 +57,8 @@ class Simulator:
                 self.REGISTERS[rd] = ALU_result
 
     def run_MEM(self):
+        if self.MEM_WB['control'] == self.NOP_CONTROL:
+            return
         # read from stage registers
         control = self.EX_MEM['control'] # read control from previous stage
         PC_plus_OFFSET = self.EX_MEM['PC_plus_OFFSET']
@@ -82,6 +92,8 @@ class Simulator:
         self.MEM_WB['rd'] = rd
 
     def run_EX(self):
+        if self.MEM_WB['control'] == self.NOP_CONTROL:
+            return
         # read from stage registers
         control = self.ID_EX['control'] # read control from previous stage
         PC = self.ID_EX['PC']
@@ -155,6 +167,8 @@ class Simulator:
         self.EX_MEM['control'] = control # pass control to next stage
 
     def run_ID(self):
+        if self.MEM_WB['control'] == self.NOP_CONTROL:
+            return
         # read from stage registers
         instruction = self.IF_ID['instruction']
         PC = self.IF_ID['PC']
@@ -172,7 +186,7 @@ class Simulator:
         # check for hazard ????? check the if statement
         if self.ID_EX['control']['MemRead'] and ((self.ID_EX['rd'] == self.IF_ID['rs1']) or (self.ID_EX['rd'] == self.IF_ID['rs2'])):
             # stall the pipeline
-            self.ID_EX['control'] = get_control_values('NOP')
+            self.ID_EX['control'] = self.NOP_CONTROL
         else:
             # write to stage registers
             self.ID_EX['control'] = control # pass control to next stage
@@ -189,4 +203,5 @@ class Simulator:
         # write to stage registers
         if self.PC <= len(self.INSTRUCTION_MEMORY):
             self.IF_ID['instruction'] = self.INSTRUCTION_MEMORY[self.PC]
+            print(self.IF_ID['instruction'])
             self.IF_ID['PC'] = self.PC
