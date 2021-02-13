@@ -77,13 +77,56 @@ class Simulator:
         rd = self.ID_EX['rd']
 
         # operate
+        # forwarding unit
+        # EX Hazard: pg 300 in the book
+        ForwardA = "00"
+        ForwardB = "00"
+        if (self.EX_MEM['control']['RegWrite'] and (self.EX_MEM['rd'] != 0) and (self.EX_MEM['rd'] == self.ID_EX['rs1'])):
+            ForwardA = "10"
+        if (self.EX_MEM['control']['RegWrite'] and (self.EX_MEM['rd'] != 0) and (self.EX_MEM['rd'] == self.ID_EX['rs2'])):
+            ForwardB = "10"
+
+        # MEM Hazard: pg 301 in the book
+        if (self.MEM_WB['control']['RegWrite'] and (self.MEM_WB['rd'] != 0) and not(self.EX_MEM['control']['RegWrite'] 
+            and (self.EX_MEM['rd'] != 0) and (self.EX_MEM['rd'] == self.ID_EX['rs1'])) and (self.MEM_WB['rd'] == self.ID_EX['rs1'])):
+            ForwardA = "01"
+        if (self.MEM_WB['control']['RegWrite'] and (self.MEM_WB['rd'] != 0) and not(self.EX_MEM['control']['RegWrite'] 
+            and (self.EX_MEM['rd'] != 0) and (self.EX_MEM['rd'] == self.ID_EX['rs2'])) and (self.MEM_WB['rd'] == self.ID_EX['rs2'])):
+            ForwardB = "01"
+
         ALU_control = get_alu_control(control['ALU_Op1']+control['ALU_Op0'], funct_for_alu_control)
         PC_plus_OFFSET = PC + 2 * imm_gen_offset
         ALU_result = None
+        if ForwardA == "00":
+            param1 = rs1_data
+        elif ForwardA == "10":
+            param1 = self.EX_MEM['ALU_result'] 
+        elif ForwardA == "01":
+            if self.MEM_WB['control']['RegWrite']:
+                read_from_memory = self.MEM_WB['read_from_memory']
+                ALU_result = self.MEM_WB['ALU_result']
+                if self.MEM_WB['control']['MemToReg']: # ld: write the value at rs2+offset to rs1, else do not write to reg
+                    param1 = read_from_memory
+                else: # r-type: write the ALU_result to rd
+                    param1 = ALU_result
+
+        if ForwardB == "00":
+            param2 = rs2_data
+        elif ForwardB == "10":
+            param2 = self.EX_MEM['ALU_result'] 
+        elif ForwardB == "01":
+            if self.MEM_WB['control']['RegWrite']:
+                read_from_memory = self.MEM_WB['read_from_memory']
+                ALU_result = self.MEM_WB['ALU_result']
+                if self.MEM_WB['control']['MemToReg']: # ld: write the value at rs2+offset to rs1, else do not write to reg
+                    param2 = read_from_memory
+                else: # r-type: write the ALU_result to rd
+                    param2 = ALU_result
+
         if control['ALUSrc'] == 0: # r-format or beq
-            ALU_result = perform_ALU_operation(ALU_control, rs1_data, rs2_data)
+            ALU_result = perform_ALU_operation(ALU_control, param1, param2)
         elif control['ALUSrc'] == 1: # ld, sd: MEM[rs1]+offset
-            ALU_result = perform_ALU_operation(ALU_control, rs1_data, imm_gen_offset)
+            ALU_result = perform_ALU_operation(ALU_control, param1, imm_gen_offset)
         ALU_zero = ALU_result == 0
 
         # write to stage registers
