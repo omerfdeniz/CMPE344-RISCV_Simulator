@@ -114,6 +114,17 @@ def get_alu_control(ALU_op, funct_for_alu_control): # used fig 4.12
             return "0001" 
 
 def get_control_values(instruction):
+    if instruction == 'NOP':
+        return {
+            'ALUSrc': 0,
+            'MemToReg': 0,
+            'RegWrite': 0,
+            'MemRead': 0,
+            'MemWrite': 0,
+            'Branch': 0,
+            'ALUOp1': 0,
+            'ALUOp0': 0
+        }
     opcode = instruction['opcode']
     control_values = {} 
     if (opcode == R_TYPE_OPCODE):
