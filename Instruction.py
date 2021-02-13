@@ -1,3 +1,10 @@
+R_TYPE_OPCODE = "0110011" # add, sub, and, or
+I_TYPE_OPCODE = "0000011" # ld
+S_TYPE_OPCODE = "0100011" # sd
+SB_TYPE_OPCODE = "1100111" # beq
+
+INSTRUCTION_LEN = 64
+### TODO: HEPSINDE tüm fieldlar olsun, gerekirse None olsun
 def get_instructions(program_path):
     with open(program_path, 'r') as f:
         instruction_lines = [line.strip() for line in f.readlines()]
@@ -85,13 +92,30 @@ def get_instructions(program_path):
 def perform_ALU_operation(ALU_control, param1, param2):
     pass
 
+
+#returns int
+def sign_extend(instruction):
+    assert len(instruction['offset']) == 12
+    sign_bit = instruction['offset'][0]
+    extended_offset = sign_bit * (INSTRUCTION_LEN - 12) + instruction['offset'][1:]
+    return int(extended_offset, 2) # "111" -> 7
+
+def get_alu_control(ALU_op, funct_for_alu_control): # used fig 4.12
+    if ALU_op == "00" or ALU_op == "01":
+        return ALU_op + "00"
+    else:
+        if funct_for_alu_control[0] == "0" and funct_for_alu_control[1:] == "000":
+            return "0010" 
+        elif funct_for_alu_control[0] == "1" and funct_for_alu_control[1:] == "000":
+            return "0110" 
+        elif funct_for_alu_control[0] == "0" and funct_for_alu_control[1:] == "111":
+            return "0000" 
+        else:
+            return "0001" 
+
 def get_control_values(instruction):
     opcode = instruction['opcode']
-    R_TYPE_OPCODE = "0110011" # add, sub, and, or
-    I_TYPE_OPCODE = "0000011" # ld
-    S_TYPE_OPCODE = "0100011" # sd
-    SB_TYPE_OPCODE = "1100111" # beq
-    control_values = {} # fill this
+    control_values = {} 
     if (opcode == R_TYPE_OPCODE):
         control_values = {
             'ALUSrc': 0,
@@ -133,5 +157,5 @@ def get_control_values(instruction):
             'Branch': 1,
             'ALUOp1': 0,
             'ALUOp0': 1
-        }       
-    self.control_values = control_values
+        }
+    return control_values       

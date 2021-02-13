@@ -6,7 +6,6 @@ class Simulator:
         self.MEMORY = [0] * 1000
         self.PC = -1
         self.CLOCK = 0
-        self.PCSrc = 0
 
         self.PHASE_INSTRUCTIONS = {'IF': None, 'ID': None, 'EX': None, 'MEM': None, 'WB': None}
 
@@ -18,43 +17,100 @@ class Simulator:
 
     def run(self):
         # while PC is valid and not all PHASES are None
-        while(self.PC <= len(self.INSTRUCTION_MEMORY) or sum(self.PHASES.values()) != 0):
-            self.PC = self.EX_MEM['PC+Offset'] if self.PCSrc else self.PC+1
-            #WB
+        while(self.PC <= len(self.INSTRUCTION_MEMORY)):
+            ## WB
+            # read from stage registers
+            control = self.MEM_WB['control'] # read control from previous stage
+            read_from_memory = self.MEM_WB['read_from_memory']
+            ALU_result = self.MEM_WB['ALU_result']
+            rd = self.MEM_WB['rd']
+            # operate
+            if control['RegWrite']:
+                if control['MemToReg']: # ld: write the value at rs2+offset to rs1, else do not write to reg
+                    self.REGISTERS[rd] = read_from_memory
+                else: # r-type: write the ALU_result to rd
+                    self.REGISTERS[rd] = ALU_result
+            ## MEM
+            # read from stage registers
+            control = self.EX_MEM['control'] # read control from previous stage
+            PC_plus_OFFSET = self.EX_MEM['PC_plus_OFFSET']
+            ALU_zero = self.EX_MEM['ALU_zero']
+            ALU_result = self.EX_MEM['ALU_result']
+            rs2_data = self.EX_MEM['rs2_data']
+            rd = self.EX_MEM['rd']
 
-            #MEM
-            if self.EX_MEM['ALU_zero'] and self.EX_MEM['control']['Branch']: # if a branch instruction and rs1_data-rs2_data==0
-                self.PCSrc = 1
+            # operate
+            if control['Branch'] and ALU_zero: # if a branch instruction and rs1_data-rs2_data==0
+                self.PC = PC_plus_OFFSET
             else:
-                self.PCSrc = 0
+                self.PC += 1
+
+            if control('MemWrite'): # sd, will write to memory
+                self.MEMORY[ALU_result] = rs2_data
+
+            read_from_memory = None
+            if control['MemRead']: # ld, will write to register file
+                read_from_memory = self.MEMORY[ALU_result]
             
-            if self.EX_MEM['control']['MemRead']: # ld, will write to register file
-                self.MEM_WB['read_from_memory'] = self.MEMORY[self.EX_MEM['ALU_result']]
-            #EX
+            # write to stage registers
+            self.MEM_WB['read_from_memory'] = read_from_memory
+            self.MEM_WB['ALU_result'] = ALU_result
+            self.MEM_WB['control'] = control # pass control to next stage
+            self.MEM_WB['rd'] = rd
+
+            ## EX
+            # read from stage registers
+            control = self.ID_EX['control'] # read control from previous stage
+            PC = self.ID_EX['PC']
+            rs1_data = self.ID_EX['rs1_data']
+            rs2_data = self.ID_EX['rs2_data']
+            imm_gen_offset = self.ID_EX['imm_gen_offset']
+            funct_for_alu_control = self.ID_EX['funct_for_alu_control']
+            rd = self.ID_EX['rd']
+
+            # operate
+            ALU_control = get_alu_control(control['ALU_Op1']+control['ALU_Op0'], funct_for_alu_control)
+            PC_plus_OFFSET = PC + 2 * imm_gen_offset
             ALU_result = None
-            if self.ID_EX['control']['ALUSrc'] == 0:
-                ALU_result = perform_ALU_operation(self.ID_EX['rs1_data'], self.ID_EX['rs2_data'])
-            else:
-                ALU_result = perform_ALU_operation(self.ID_EX['rs1_data'], self.ID_EX['im_gen?????'])
-            self.EX_MEM['ALU_zero'] = ALU_result == 0
+            if control['ALUSrc'] == 0: # r-format or beq
+                ALU_result = perform_ALU_operation(ALU_control, rs1_data, rs2_data)
+            elif control['ALUSrc'] == 1: # ld, sd: MEM[rs1]+offset
+                ALU_result = perform_ALU_operation(ALU_control, rs1_data, imm_gen_offset)
+            ALU_zero = ALU_result == 0
+
+            # write to stage registers
+            self.EX_MEM['PC_plus_OFFSET'] = PC_plus_OFFSET
+            self.EX_MEM['ALU_zero'] = ALU_zero
             self.EX_MEM['ALU_result'] = ALU_result
-            self.EX_MEM['PC+Offset'] = self.EX_MEM['PC'] + self.ID_EX['im_gen?????'] * 2
+            self.EX_MEM['rs2_data'] = rs2_data
+            self.EX_MEM['rd'] = rd
+            self.EX_MEM['control'] = control # pass control to next stage
 
-            if self.ID_EX['rs2_data']:
-                self.EX_MEM['rs2_data'] = self.ID_EX['rs2_data']
+            ## ID
 
-            self.EX_MEM['control'] = self.ID_EX['control']
+            # read from stage registers
+            instruction = self.IF_ID['instruction']
+            PC = self.IF_ID['PC']
 
-            # ID
-            self.ID_EX['control'] = get_control_values(self.IF_ID['instruction'])
-            self.ID_EX['PC'] = self.IF_ID['PC']
+            # operate
+            control = get_control_values(instruction) # calculate control
+            imm_gen_offset = sign_extend(instruction)
+            rs1_data = self.REGISTERS[instruction['rs1']]
+            rs2_data = self.REGISTERS[instruction['rs2']]
+            funct_for_alu_control = instruction['funct7'][1] + instruction['funct3'] # will be used for setting ALU control in EX
+            rd = instruction['rd']
 
-            if 'rs1' in self.ID_EX['instruction']:
-                self.ID_EX['rs1_data'] = self.REGISTERS[self.ID_EX['instruction']['rs1']]
-            if 'rs2' in self.ID_EX['instruction']:
-                self.ID_EX['rs2_data'] = self.REGISTERS[self.ID_EX['instruction']['rs2']]
+            # write to stage registers
+            self.ID_EX['control'] = control # pass control to next stage
+            self.ID_EX['imm_gen_offset'] = imm_gen_offset
+            
+            self.ID_EX['rs1_data'] = rs1_data # not selecting the none values are handled by the control bits in EX stage
+            self.ID_EX['rs2_data'] = rs2_data
+            self.ID_EX['funct_for_alu_control'] = funct_for_alu_control
+            self.ID_EX['rd'] = rd
 
-            # IF
+            ## IF
+            # operate
             if self.PC <= len(self.INSTRUCTION_MEMORY):
                 self.IF_ID['instruction'] = self.INSTRUCTION_MEMORY[self.PC]
                 self.IF_ID['PC'] = self.PC
