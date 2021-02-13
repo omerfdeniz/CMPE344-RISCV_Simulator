@@ -157,7 +157,20 @@ def get_instructions(program_path):
 
 
 def perform_ALU_operation(ALU_control, param1, param2):
-    pass
+    if ALU_control == '0010':
+        # function ADD
+        return param1 + param2
+    elif ALU_control == '0110':
+        # function SUB
+        return param1 - param 2
+    elif ALU_control == '0000':
+        # function AND
+        return param1 & param2
+    elif ALU_control == '0001'
+        # function OR
+        return param1 | param2
+    else:
+        return None
 
 
 # returns int
