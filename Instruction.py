@@ -4,7 +4,6 @@ S_TYPE_OPCODE = "0100011"  # sd
 SB_TYPE_OPCODE = "1100111"  # beq
 
 INSTRUCTION_LEN = 64
-# TODO: HEPSINDE tüm fieldlar olsun, gerekirse None olsun
 
 
 def get_instructions(program_path):
@@ -13,7 +12,8 @@ def get_instructions(program_path):
 
     instructions = []
 
-    # for each assembly code line, create an Instruction object instance
+    # for each assembly code line, put together the intruction fields 
+    # according to its instruction type
     for instruction in instruction_lines:
         instruction_name = instruction.split(' ')[0]
         intstruction_fields = {}
@@ -152,7 +152,7 @@ def get_instructions(program_path):
                 'opcode': '1100111',
                 'immed': immed
             }
-        instructions.append(Instruction(instruction_fields))
+        instructions.append(instruction_fields)
     return instructions
 
 
