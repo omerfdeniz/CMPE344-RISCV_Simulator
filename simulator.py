@@ -72,6 +72,8 @@ class Simulator:
         rs2_data = self.ID_EX['rs2_data']
         imm_gen_offset = self.ID_EX['imm_gen_offset']
         funct_for_alu_control = self.ID_EX['funct_for_alu_control']
+        rs1 = self.ID_EX['rs1']
+        rs2 = self.ID_EX['rs2']
         rd = self.ID_EX['rd']
 
         # operate
@@ -100,8 +102,10 @@ class Simulator:
         # operate
         control = get_control_values(instruction) # calculate control
         imm_gen_offset = sign_extend(instruction)
-        rs1_data = self.REGISTERS[instruction['rs1']]
-        rs2_data = self.REGISTERS[instruction['rs2']]
+        rs1 = instruction['rs1']
+        rs2 = instruction['rs2']
+        rs1_data = self.REGISTERS[rs1]
+        rs2_data = self.REGISTERS[rs2]
         funct_for_alu_control = instruction['funct7'][1] + instruction['funct3'] # will be used for setting ALU control in EX
         rd = instruction['rd']
 
@@ -118,6 +122,8 @@ class Simulator:
             self.ID_EX['rs2_data'] = rs2_data
             self.ID_EX['funct_for_alu_control'] = funct_for_alu_control
             self.ID_EX['rd'] = rd
+            self.ID_EX['rs1'] = rs1
+            self.ID_EX['rs2'] = rs2
 
     def run_IF(self):
         # write to stage registers
