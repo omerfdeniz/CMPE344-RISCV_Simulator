@@ -7,8 +7,6 @@ class Simulator:
         self.PC = 0
         self.CLOCK = 0
 
-        self.PHASE_INSTRUCTIONS = {'IF': None, 'ID': None, 'EX': None, 'MEM': None, 'WB': None}
-
         self.IF_ID = {'control': get_control_values("NOP")}
         self.ID_EX = {'control': get_control_values("NOP")}
         self.EX_MEM = {'control': get_control_values("NOP")}
@@ -23,6 +21,7 @@ class Simulator:
             self.run_MEM()
             self.run_ID()
             self.run_IF()
+            self.CLOCK += 1
 
     def run_WB(self):
         # read from stage registers
@@ -36,6 +35,7 @@ class Simulator:
                 self.REGISTERS[rd] = read_from_memory
             else: # r-type: write the ALU_result to rd
                 self.REGISTERS[rd] = ALU_result
+
     def run_MEM(self):
         # read from stage registers
         control = self.EX_MEM['control'] # read control from previous stage
@@ -105,14 +105,19 @@ class Simulator:
         funct_for_alu_control = instruction['funct7'][1] + instruction['funct3'] # will be used for setting ALU control in EX
         rd = instruction['rd']
 
-        # write to stage registers
-        self.ID_EX['control'] = control # pass control to next stage
-        self.ID_EX['imm_gen_offset'] = imm_gen_offset
-        
-        self.ID_EX['rs1_data'] = rs1_data # not selecting the none values are handled by the control bits in EX stage
-        self.ID_EX['rs2_data'] = rs2_data
-        self.ID_EX['funct_for_alu_control'] = funct_for_alu_control
-        self.ID_EX['rd'] = rd
+        # check for hazard ????? check the if statement
+        if self.ID_EX['control']['MemRead'] and ((self.ID_EX['rd'] == self.IF_ID['rs1']) or (self.ID_EX['rd'] == self.IF_ID['rs2'])):
+            # stall the pipeline
+            self.ID_EX['control'] = get_control_values('NOP')
+        else:
+            # write to stage registers
+            self.ID_EX['control'] = control # pass control to next stage
+            self.ID_EX['imm_gen_offset'] = imm_gen_offset
+            
+            self.ID_EX['rs1_data'] = rs1_data # not selecting the none values are handled by the control bits in EX stage
+            self.ID_EX['rs2_data'] = rs2_data
+            self.ID_EX['funct_for_alu_control'] = funct_for_alu_control
+            self.ID_EX['rd'] = rd
 
     def run_IF(self):
         # write to stage registers
