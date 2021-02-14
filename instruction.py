@@ -5,7 +5,6 @@ SB_TYPE_OPCODE = "1100111"  # beq
 
 INSTRUCTION_LEN = 64
 
-
 def get_instructions(program_path):
     with open(program_path, 'r') as f:
         instruction_lines = [line.strip() for line in f.readlines()]
@@ -33,7 +32,7 @@ def get_instructions(program_path):
                 'funct3': '000',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': "00000000000000"
+                'immed': None
             }
         elif instruction_name == 'and':
             # get the register names from assembly instruction string
@@ -51,7 +50,7 @@ def get_instructions(program_path):
                 'funct3': '111',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': "00000000000000"
+                'immed': None
             }
         elif instruction_name == 'or':
             # get the register names from assembly instruction string
@@ -69,7 +68,7 @@ def get_instructions(program_path):
                 'funct3': '110',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': "00000000000000"
+                'immed': None
             }
         elif instruction_name == 'sub':
             # get the register names from assembly instruction string
@@ -87,7 +86,7 @@ def get_instructions(program_path):
                 'funct3': '000',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': "00000000000000"
+                'immed': None
             }
         elif instruction_name == 'ld':
             # get the register names from assembly instruction string
@@ -102,8 +101,8 @@ def get_instructions(program_path):
             immed = int(regs[1][:regs[1].find('(')])
             immed = f'{immed:012b}' # convert to 12 bit representation
             instruction_fields = {
-                'funct7': "0000000",
-                'rs2': 1,
+                'funct7': None,
+                'rs2': None,
                 'rs1': rs1,
                 'funct3': '011',
                 'rd': rd,
@@ -123,11 +122,11 @@ def get_instructions(program_path):
             immed = int(regs[1][:regs[1].find('(')])
             immed = f'{immed:012b}' # convert to 12 bit representation
             instruction_fields = {
-                'funct7': "0000000",
+                'funct7': None,
                 'rs2': rs2,
                 'rs1': rs1,
                 'funct3': '111',
-                'rd': 1,
+                'rd': None,
                 'opcode': '0100011',
                 'immed': immed
             }
@@ -143,11 +142,11 @@ def get_instructions(program_path):
             immed = int(regs[2])
             immed = f'{immed:012b}' # convert to 12 bit representation
             instruction_fields = {
-                'funct7': "0000000",
+                'funct7': None,
                 'rs2': rs2,
                 'rs1': rs1,
                 'funct3': '000',
-                'rd': 1,
+                'rd': None,
                 'opcode': '1100111',
                 'immed': immed
             }
@@ -173,7 +172,8 @@ def perform_ALU_operation(ALU_control, param1, param2):
 
 
 # returns int
-def sign_extend(immed):
+def sign_extend(instruction):
+    immed = instruction['immed']
     # if immed is none
     if not immed:
         return 0
@@ -183,7 +183,7 @@ def sign_extend(immed):
     return int(extended_offset, 2)  # "111" -> 7
 
 
-def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12 
+def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12
     if ALU_op == "00" or ALU_op == "01": 
         return ALU_op + "10"
     else:
@@ -204,7 +204,7 @@ def get_nop_instruction():
                 'funct3': '000',
                 'rd': 1,
                 'opcode': '0000000',
-                'immed': "00000000000000" # 12 bit
+                'immed': "00000000000000" # 12 bit
     }
 
 def get_nop_control():
@@ -266,3 +266,9 @@ def get_control_values(instruction):
             'ALUOp0': 1
         }
     return control_values
+
+def get_funct_for_alu_control(instruction):
+    if instruction['funct7'] != None:
+        return instruction['funct7'][1] + instruction['funct3']
+    else:
+        return "0000"

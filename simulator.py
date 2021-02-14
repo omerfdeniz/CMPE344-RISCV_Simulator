@@ -3,9 +3,7 @@ class Simulator:
     def __init__(self, program_path):
         self.INSTRUCTION_MEMORY = get_instructions(program_path) # list of Instruction objects
         self.REGISTERS = [0] * 32
-        self.REGISTERS[1] = 3
         self.MEMORY = [0] * 1000
-        self.MEMORY[7] = 113
         self.PC = 0
         self.CLOCK = 1
 
@@ -16,11 +14,22 @@ class Simulator:
         self.IF_ID = {"PC": 0, "instruction": self.NOP_INSTRUCTION, "rs1": 1, "rs2": 1}
         self.ID_EX = {"PC": 0, "rs1_data": 0, "rs2_data": 0, 
             "imm_gen_offset": 0, "funct_for_alu_control": "0000", "rd": 0, 
-            "control": self.NOP_CONTROL, "rs1": 1, "rs2": 1}
-        self.EX_MEM = {"PC_plus_OFFSET": 0, "ALU_zero": 0, "ALU_result": 0, "rs2_data": 0, "rd": 0,
+            "control": self.NOP_CONTROL, "rs1": None, "rs2": None}
+        self.EX_MEM = {"PC_plus_OFFSET": 0, "ALU_zero": 0, "ALU_result": 0, "rs2_data": 0, "rd": None,
             "control": self.NOP_CONTROL}
-        self.MEM_WB = {"read_from_memory": 0, "ALU_result": 0, "rd": 0, "control": self.NOP_CONTROL}
+        self.MEM_WB = {"read_from_memory": 0, "ALU_result": 0, "rd": None, "control": self.NOP_CONTROL}
     
+    def write_to_register(self, index, value):
+        if index == 0 or index == None or value == None:
+            return
+        else:
+            self.REGISTERS[index] = value
+
+    def read_register(self, index):
+        if index == None or index >= len(self.REGISTERS):
+            return 0
+        else:
+            return self.REGISTERS[index]
     def print_status(self):
         print(f"PC: {self.PC}")
         for i, val in enumerate(self.REGISTERS):
@@ -57,9 +66,9 @@ class Simulator:
         # operate
         if control['RegWrite']:
             if control['MemToReg']: # ld: write the value at rs2+offset to rs1, else do not write to reg
-                self.REGISTERS[rd] = read_from_memory
+                self.write_to_register(rd, read_from_memory)
             else: # r-type: write the ALU_result to rd
-                self.REGISTERS[rd] = ALU_result
+                self.write_to_register(rd, read_from_memory)
 
     def run_MEM(self):
         # read from stage registers
@@ -164,12 +173,13 @@ class Simulator:
 
         # operate
         control = get_control_values(instruction) # calculate control
-        imm_gen_offset = sign_extend(instruction['immed'])
+        imm_gen_offset = sign_extend(instruction)
         rs1 = instruction['rs1']
         rs2 = instruction['rs2']
-        rs1_data = self.REGISTERS[rs1]
-        rs2_data = self.REGISTERS[rs2]
-        funct_for_alu_control = instruction['funct7'][1] + instruction['funct3'] # will be used for setting ALU control in EX
+        rs1_data = self.read_register(rs1)
+        rs2_data = self.read_register(rs2)
+        # will be used for setting ALU control in EX
+        funct_for_alu_control = get_funct_for_alu_control(instruction)
         rd = instruction['rd']
 
         # check for hazard ????? check the if statement
