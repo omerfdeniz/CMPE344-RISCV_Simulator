@@ -7,7 +7,7 @@ class Simulator:
         self.REGISTERS[2] = 4
         self.MEMORY = [0] * 1000
         self.PC = 0
-        self.CLOCK = 0
+        self.CLOCK = 1
 
         self.NOP_INSTRUCTION = get_nop_instruction()
         self.NOP_CONTROL = get_nop_control() # all fields are 0
@@ -22,25 +22,27 @@ class Simulator:
         self.MEM_WB = {"read_from_memory": 0, "ALU_result": 0, "rd": 0, "control": self.NOP_CONTROL}
     
     def print_status(self):
-        print(f"-----STATUS AT THE BEGINNING OF CLOCK = {self.CLOCK}-----")
         print(f"PC: {self.PC}")
         for i, val in enumerate(self.REGISTERS):
             print(f"x{i}: {val}",end=" ")
         print()
     def run(self):
+        print(f"-----STATUS AT THE BEGINNING-----")
+        self.print_status()
         # while PC is valid and not all PHASES are NOPs
         while(self.PC < len(self.INSTRUCTION_MEMORY) or not self.ALL_STAGES_NOP):
-            self.print_status()
             self.run_WB()
             self.run_MEM()
             self.run_EX()
             self.run_ID()
             self.run_IF()
+            print(f"-----STATUS AT THE END OF CLOCK = {self.CLOCK}-----")
+            self.print_status()
             #break
             self.CLOCK += 1
             # if all registers are full of control values of zero
-            if (self.ID_EX['control'] == self.EX_MEM['control'] and
-                self.EX_MEM['control'] == self.MEM_WB['control']) and self.MEM_WB['control'] == self.NOP_CONTROL:
+            if ((self.IF_ID['instruction'] == self.NOP_INSTRUCTION and self.ID_EX['control'] == self.EX_MEM['control']) and
+                (self.EX_MEM['control'] == self.MEM_WB['control'] and self.MEM_WB['control'] == self.NOP_CONTROL)):
                 self.ALL_STAGES_NOP = True
             else:
                 self.ALL_STAGES_NOP = False
@@ -72,12 +74,9 @@ class Simulator:
         if control['Branch'] and ALU_zero: # if a branch instruction and rs1_data-rs2_data==0
             self.PC = PC_plus_OFFSET
             # flush instructions in the IF, ID, EX when MEM is executing
-            self.IF_ID['control'] = self.NOP_CONTROL
+            self.IF_ID['instruction'] = self.NOP_INSTRUCTION
             self.ID_EX['control'] = self.NOP_CONTROL
             self.EX_MEM['control'] = self.NOP_CONTROL
-
-        elif control != self.NOP_CONTROL: # ?????? ask if it is valid
-            self.PC += 1
 
         if control['MemWrite']: # sd, will write to memory
             self.MEMORY[ALU_result] = rs2_data
@@ -194,6 +193,7 @@ class Simulator:
         if self.PC < len(self.INSTRUCTION_MEMORY):
             self.IF_ID['instruction'] = self.INSTRUCTION_MEMORY[self.PC]
             self.IF_ID['PC'] = self.PC
+            self.PC += 1
         else:
             self.IF_ID['instruction'] = self.NOP_INSTRUCTION
             self.IF_ID['PC'] = self.PC
