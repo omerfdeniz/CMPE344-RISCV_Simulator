@@ -184,8 +184,8 @@ def sign_extend(immed):
 
 
 def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12
-    if ALU_op == "00" or ALU_op == "01":
-        return ALU_op + "00"
+    if ALU_op == "00" or ALU_op == "01": 
+        return ALU_op + "10"
     else:
         if funct_for_alu_control[0] == "0" and funct_for_alu_control[1:] == "000":
             return "0010"
