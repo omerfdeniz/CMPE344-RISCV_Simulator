@@ -17,7 +17,7 @@ class Simulator:
         self.ID_EX = {"PC": 0, "rs1_data": 0, "rs2_data": 0, 
             "imm_gen_offset": 0, "funct_for_alu_control": "0000", "rd": 0, 
             "control": self.NOP_CONTROL, "rs1": None, "rs2": None}
-        self.EX_MEM = {"PC_plus_OFFSET": 0, "ALU_zero": 0, "ALU_result": 0, "rs2_data": 0, "rd": None,
+        self.EX_MEM = {"PC_plus_OFFSET": 0, "ALU_zero": 0, "ALU_result": 0, "rs1_data": 0, "rd": None,
             "control": self.NOP_CONTROL}
         self.MEM_WB = {"read_from_memory": 0, "ALU_result": 0, "rd": None, "control": self.NOP_CONTROL}
     
@@ -91,7 +91,7 @@ class Simulator:
         PC_plus_OFFSET = self.EX_MEM['PC_plus_OFFSET']
         ALU_zero = self.EX_MEM['ALU_zero']
         ALU_result = self.EX_MEM['ALU_result']
-        rs2_data = self.EX_MEM['rs2_data']
+        rs1_data = self.EX_MEM['rs1_data']
         rd = self.EX_MEM['rd']
 
         # operate
@@ -103,7 +103,7 @@ class Simulator:
             self.EX_MEM['control'] = self.NOP_CONTROL
 
         if control['MemWrite']: # sd, will write to memory
-            self.MEMORY[ALU_result] = rs2_data
+            self.MEMORY[ALU_result] = rs1_data
 
         read_from_memory = None
         if control['MemRead']: # ld, will write to register file
@@ -174,12 +174,12 @@ class Simulator:
         if control['ALUSrc'] == 0: # r-format or beq
             ALU_result = perform_ALU_operation(ALU_control, param1, param2)
         elif control['ALUSrc'] == 1: # ld, sd: MEM[rs1]+offset
-            ALU_result = perform_ALU_operation(ALU_control, param1, imm_gen_offset)
+            ALU_result = perform_ALU_operation(ALU_control, param2, imm_gen_offset)
         ALU_zero = ALU_result == 0
 
         # write to stage registers
         self.EX_MEM = {"PC_plus_OFFSET": PC_plus_OFFSET, "ALU_zero": ALU_zero, 
-            "ALU_result": ALU_result, "rs2_data": rs2_data, "rd": rd, "control": control}
+            "ALU_result": ALU_result, "rs1_data": rs1_data, "rd": rd, "control": control}
 
     def run_ID(self):
         # read from stage registers
