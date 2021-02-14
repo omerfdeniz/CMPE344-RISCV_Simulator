@@ -3,6 +3,8 @@ class Simulator:
     def __init__(self, program_path):
         self.INSTRUCTION_MEMORY = get_instructions(program_path) # list of Instruction objects
         self.REGISTERS = [0] * 32
+        self.REGISTERS[1] = 3
+        self.REGISTERS[2] = 4
         self.MEMORY = [0] * 1000
         self.PC = 0
         self.CLOCK = 0
@@ -74,7 +76,7 @@ class Simulator:
             self.ID_EX['control'] = self.NOP_CONTROL
             self.EX_MEM['control'] = self.NOP_CONTROL
 
-        else:
+        elif control != self.NOP_CONTROL: # ?????? ask if it is valid
             self.PC += 1
 
         if control['MemWrite']: # sd, will write to memory
@@ -117,7 +119,7 @@ class Simulator:
             and (self.EX_MEM['rd'] != 0) and (self.EX_MEM['rd'] == self.ID_EX['rs2'])) and (self.MEM_WB['rd'] == self.ID_EX['rs2'])):
             ForwardB = "01"
 
-        ALU_control = get_alu_control(control['ALUOp1']+control['ALUOp0'], funct_for_alu_control)
+        ALU_control = get_alu_control(str(control['ALUOp1'])+str(control['ALUOp0']), funct_for_alu_control)
         PC_plus_OFFSET = PC + 2 * imm_gen_offset
         ALU_result = None
         if ForwardA == "00":
