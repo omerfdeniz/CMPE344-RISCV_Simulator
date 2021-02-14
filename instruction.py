@@ -33,7 +33,7 @@ def get_instructions(program_path):
                 'funct3': '000',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': None
+                'immed': "00000000000000"
             }
         elif instruction_name == 'and':
             # get the register names from assembly instruction string
@@ -51,7 +51,7 @@ def get_instructions(program_path):
                 'funct3': '111',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': None
+                'immed': "00000000000000"
             }
         elif instruction_name == 'or':
             # get the register names from assembly instruction string
@@ -69,7 +69,7 @@ def get_instructions(program_path):
                 'funct3': '110',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': None
+                'immed': "00000000000000"
             }
         elif instruction_name == 'sub':
             # get the register names from assembly instruction string
@@ -87,7 +87,7 @@ def get_instructions(program_path):
                 'funct3': '000',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': None
+                'immed': "00000000000000"
             }
         elif instruction_name == 'ld':
             # get the register names from assembly instruction string
@@ -100,10 +100,10 @@ def get_instructions(program_path):
             rs1 = int(regs[1][regs[1].find('(') + 1: regs[1].find(')')][1:])
             # find immed by looking at the string just before the parentheses
             immed = int(regs[1][:regs[1].find('(')])
-
+            immed = f'{immed:012b}' # convert to 12 bit representation
             instruction_fields = {
-                'funct7': None,
-                'rs2': None,
+                'funct7': "0000000",
+                'rs2': 1,
                 'rs1': rs1,
                 'funct3': '011',
                 'rd': rd,
@@ -121,13 +121,13 @@ def get_instructions(program_path):
             rs2 = int(regs[1][regs[1].find('(') + 1: regs[1].find(')')][1:])
             # find immed by looking at the string just before the parentheses
             immed = int(regs[1][:regs[1].find('(')])
-
+            immed = f'{immed:012b}' # convert to 12 bit representation
             instruction_fields = {
-                'funct7': None,
+                'funct7': "0000000",
                 'rs2': rs2,
                 'rs1': rs1,
                 'funct3': '111',
-                'rd': None,
+                'rd': 1,
                 'opcode': '0100011',
                 'immed': immed
             }
@@ -141,13 +141,13 @@ def get_instructions(program_path):
             rs2 = int(regs[1][1:])
             # immediate is assummed to be given as an offset (TALK ABOUT THIS LATER)
             immed = int(regs[2])
-
+            immed = f'{immed:012b}' # convert to 12 bit representation
             instruction_fields = {
-                'funct7': None,
+                'funct7': "0000000",
                 'rs2': rs2,
                 'rs1': rs1,
                 'funct3': '000',
-                'rd': None,
+                'rd': 1,
                 'opcode': '1100111',
                 'immed': immed
             }
@@ -183,7 +183,7 @@ def sign_extend(immed):
     return int(extended_offset, 2)  # "111" -> 7
 
 
-def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12
+def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12 
     if ALU_op == "00" or ALU_op == "01": 
         return ALU_op + "10"
     else:
