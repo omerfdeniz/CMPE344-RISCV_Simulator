@@ -7,10 +7,11 @@ INSTRUCTION_LEN = 64
 
 def get_instructions(program_path):
     with open(program_path, 'r') as f:
-        instruction_lines = [line.strip() for line in f.readlines()]
+        lines = [line.strip() for line in f.readlines()]
 
     instructions = []
-
+    init_lines = lines[:lines.index('---')]
+    instruction_lines = lines[lines.index('---')+1:]
     # for each assembly code line, put together the intruction fields 
     # according to its instruction type
     for instruction in instruction_lines:
@@ -151,7 +152,7 @@ def get_instructions(program_path):
                 'immed': immed
             }
         instructions.append(instruction_fields)
-    return instructions
+    return init_lines, instructions
 
 
 def perform_ALU_operation(ALU_control, param1, param2):

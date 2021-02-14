@@ -1,11 +1,13 @@
 from instruction import *
 class Simulator:
     def __init__(self, program_path):
-        self.INSTRUCTION_MEMORY = get_instructions(program_path) # list of Instruction objects
         self.REGISTERS = [0] * 32
         self.MEMORY = [0] * 1000
         self.PC = 0
         self.CLOCK = 1
+
+        init_lines, self.INSTRUCTION_MEMORY = get_instructions(program_path) # list of Instruction objects
+        self.parse_inits(init_lines)
 
         self.NOP_INSTRUCTION = get_nop_instruction()
         self.NOP_CONTROL = get_nop_control() # all fields are 0
@@ -19,6 +21,19 @@ class Simulator:
             "control": self.NOP_CONTROL}
         self.MEM_WB = {"read_from_memory": 0, "ALU_result": 0, "rd": None, "control": self.NOP_CONTROL}
     
+    def parse_inits(self, init_lines):
+        for init in init_lines:
+            init = init.replace(" ","")
+            if init[0] == 'x': # write to register file
+                eq_index = init.index('=')
+                reg = int(init[1:eq_index])
+                val = int(init[eq_index+1:])
+                self.write_to_register(reg, val)
+            if init[0] == 'm': # write to memory
+                eq_index = init.index('=')
+                mem_index = int(init[init.index('[')+1:init.index(']')])
+                val = int(init[eq_index+1:])
+                self.MEMORY[mem_index] = val
     def write_to_register(self, index, value):
         if index == 0 or index == None or value == None:
             return
