@@ -4,8 +4,8 @@ class Simulator:
         self.INSTRUCTION_MEMORY = get_instructions(program_path) # list of Instruction objects
         self.REGISTERS = [0] * 32
         self.REGISTERS[1] = 3
-        self.REGISTERS[2] = 4
         self.MEMORY = [0] * 1000
+        self.MEMORY[7] = 113
         self.PC = 0
         self.CLOCK = 1
 
@@ -29,7 +29,7 @@ class Simulator:
     def run(self):
         print(f"-----STATUS AT THE BEGINNING-----")
         self.print_status()
-        # while PC is valid and not all PHASES are NOPs
+        # while PC is valid and not all STAGES are filled with NOPs
         while(self.PC < len(self.INSTRUCTION_MEMORY) or not self.ALL_STAGES_NOP):
             self.run_WB()
             self.run_MEM()
