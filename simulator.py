@@ -83,7 +83,7 @@ class Simulator:
             if control['MemToReg']: # ld: write the value at rs2+offset to rs1, else do not write to reg
                 self.write_to_register(rd, read_from_memory)
             else: # r-type: write the ALU_result to rd
-                self.write_to_register(rd, read_from_memory)
+                self.write_to_register(rd, ALU_result)
 
     def run_MEM(self):
         # read from stage registers
