@@ -48,8 +48,25 @@ class Simulator:
     def print_status(self):
         print(f"PC: {self.PC}")
         for i, val in enumerate(self.REGISTERS):
-            print(f"x{i}: {val}",end=" ")
+            """if i == 16:
+                print()
+            print(f"x{i}: {val}",end=" ")"""
+            if val != 0:
+                print(f"x{i}: {val}",end=" ") # FOR DEBUG PURPOSES
         print()
+    
+    def print_final_report(self):
+        print(f"-----FINAL REPORT-----")
+        print(f"Total # of Clock Cycles: {self.CLOCK}")
+        CPI = self.CLOCK / len(self.INSTRUCTION_MEMORY)
+        print(f"Cycles per Instruction(CPI): {CPI}")
+        num_stalls = 0
+        print(f"Total # of Stalls: {num_stalls}")
+        instructions_causing_stalls = [('add', 2)]
+        print(f"Instructions and Caused Stall numbers:")
+        for i, num in instructions_causing_stalls:
+            print(f"{i}: {num}")
+
     def run(self):
         print(f"-----STATUS AT THE BEGINNING-----")
         self.print_status()
@@ -70,6 +87,7 @@ class Simulator:
                 self.ALL_STAGES_NOP = True
             else:
                 self.ALL_STAGES_NOP = False
+        self.print_final_report()
         
 
     def run_WB(self):
