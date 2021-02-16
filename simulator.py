@@ -6,14 +6,20 @@ class Simulator:
         self.PC = 0
         self.CLOCK = 1
 
-        init_lines, self.INSTRUCTION_MEMORY = get_instructions(program_path) # list of Instruction objects
+        init_lines, self.INSTRUCTIONS_NAMES = get_program(program_path)
+        self.INSTRUCTION_MEMORY = parse_instructions(self.INSTRUCTIONS_NAMES) # list of dictionaries
         self.parse_inits(init_lines)
 
-        self.NOP_INSTRUCTION = get_nop_instruction()
+        self.NOP_INSTRUCTION = get_nop_instruction() # get nop instruction which has all values 0
         self.NOP_CONTROL = get_nop_control() # all fields are 0
         self.ALL_STAGES_NOP = True
 
-        self.IF_ID = {"PC": 0, "instruction": self.NOP_INSTRUCTION, "rs1": 1, "rs2": 1}
+        self.stalls = {}
+        self.ongoing_stalls = 0
+
+        self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] * 5
+
+        self.IF_ID = {"PC": 0, "instruction": self.NOP_INSTRUCTION, 'rs1': 0, 'rs2': 0}
         self.ID_EX = {"PC": 0, "rs1_data": 0, "rs2_data": 0, 
             "imm_gen_offset": 0, "funct_for_alu_control": "0000", "rd": 0, 
             "control": self.NOP_CONTROL, "rs1": None, "rs2": None}
@@ -21,6 +27,7 @@ class Simulator:
             "control": self.NOP_CONTROL}
         self.MEM_WB = {"read_from_memory": 0, "ALU_result": 0, "rd": None, "control": self.NOP_CONTROL}
     
+    # parse initializing commands for the program
     def parse_inits(self, init_lines):
         for init in init_lines:
             init = init.replace(" ","")
@@ -34,6 +41,7 @@ class Simulator:
                 mem_index = int(init[init.index('[')+1:init.index(']')])
                 val = int(init[eq_index+1:])
                 self.MEMORY[mem_index] = val
+
     def write_to_register(self, index, value):
         if index == 0 or index == None or value == None:
             return
@@ -56,19 +64,20 @@ class Simulator:
         print()
     
     def print_final_report(self):
+        print()
         print(f"-----FINAL REPORT-----")
         print(f"Total # of Clock Cycles: {self.CLOCK}")
         CPI = self.CLOCK / len(self.INSTRUCTION_MEMORY)
         print(f"Cycles per Instruction(CPI): {CPI}")
         num_stalls = 0
-        print(f"Total # of Stalls: {num_stalls}")
-        instructions_causing_stalls = [('add', 2)]
-        print(f"Instructions and Caused Stall numbers:")
-        for i, num in instructions_causing_stalls:
-            print(f"{i}: {num}")
+        print(f"Total # of Stalls: {len(self.stalls)}")
+        print(f"Instructions and # of Stalls Caused: ")
+        for i, num in self.stalls.items():
+            print(f"---> {i}: {num}")
 
     def run(self):
         print(f"-----STATUS AT THE BEGINNING-----")
+        print(*self.INSTRUCTIONS_IN_PIPELINE, sep=' | ')
         self.print_status()
         # while PC is valid and not all STAGES are filled with NOPs
         while(self.PC < len(self.INSTRUCTION_MEMORY) or not self.ALL_STAGES_NOP):
@@ -78,6 +87,8 @@ class Simulator:
             self.run_ID()
             self.run_IF()
             print(f"-----STATUS AT THE END OF CLOCK = {self.CLOCK}-----")
+            print(*self.INSTRUCTIONS_IN_PIPELINE, sep=' | ', end="")
+            print(" is run.")
             self.print_status()
             #break
             self.CLOCK += 1
@@ -87,9 +98,9 @@ class Simulator:
                 self.ALL_STAGES_NOP = True
             else:
                 self.ALL_STAGES_NOP = False
+        self.CLOCK -= 1
         self.print_final_report()
         
-
     def run_WB(self):
         # read from stage registers
         control = self.MEM_WB['control'] # read control from previous stage
@@ -191,8 +202,11 @@ class Simulator:
 
         if control['ALUSrc'] == 0: # r-format or beq
             ALU_result = perform_ALU_operation(ALU_control, param1, param2)
-        elif control['ALUSrc'] == 1: # ld, sd: MEM[rs1]+offset
-            ALU_result = perform_ALU_operation(ALU_control, param2, imm_gen_offset)
+        elif control['ALUSrc'] == 1: # ld, sd
+            if control['MemWrite'] == 1: # sd: rs2_data+offset
+                ALU_result = perform_ALU_operation(ALU_control, param2, imm_gen_offset)
+            else: # ld: rs1_data+offset
+                ALU_result = perform_ALU_operation(ALU_control, param1, imm_gen_offset)
         ALU_zero = ALU_result == 0
 
         # write to stage registers
@@ -215,10 +229,18 @@ class Simulator:
         funct_for_alu_control = get_funct_for_alu_control(instruction)
         rd = instruction['rd']
 
-        # check for hazard ????? check the if statement
+        # check for hazard
         if self.ID_EX['control']['MemRead'] and ((self.ID_EX['rd'] == self.IF_ID['rs1']) or (self.ID_EX['rd'] == self.IF_ID['rs2'])):
             # stall the pipeline
             self.ID_EX['control'] = self.NOP_CONTROL
+            self.ongoing_stalls += 1
+            self.INSTRUCTIONS_IN_PIPELINE = self.INSTRUCTIONS_IN_PIPELINE[0:1] + ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[1:4]
+            stall_instruction = self.INSTRUCTIONS_IN_PIPELINE[2] # instruction in the ex stage causes the hazard
+            # if already defined
+            if stall_instruction in self.stalls:
+                self.stalls[stall_instruction] += 1
+            else:
+                self.stalls[stall_instruction] = 1
         else:
             # write to stage registers
             self.ID_EX['control'] = control # pass control to next stage
@@ -228,15 +250,22 @@ class Simulator:
             self.ID_EX['rs2_data'] = rs2_data
             self.ID_EX['funct_for_alu_control'] = funct_for_alu_control
             self.ID_EX['rd'] = rd
-            self.ID_EX['rs1'] = rs1 # ????
-            self.ID_EX['rs2'] = rs2 # ????
+            self.ID_EX['rs1'] = rs1
+            self.ID_EX['rs2'] = rs2
 
     def run_IF(self):
         # write to stage registers
-        if self.PC < len(self.INSTRUCTION_MEMORY):
-            self.IF_ID['instruction'] = self.INSTRUCTION_MEMORY[self.PC]
-            self.IF_ID['PC'] = self.PC
-            self.PC += 1
+        if self.ongoing_stalls == 0:
+            if self.PC < len(self.INSTRUCTION_MEMORY):
+                new_instruction = self.INSTRUCTION_MEMORY[self.PC]
+                self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTIONS_NAMES[self.PC]] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
+                self.IF_ID['instruction'] = new_instruction
+                self.IF_ID['rs1'] = new_instruction['rs1']
+                self.IF_ID['rs2'] = new_instruction['rs2']
+                self.PC += 1
+            else:
+                self.IF_ID['instruction'] = self.NOP_INSTRUCTION
+                self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
+                self.IF_ID['PC'] = self.PC
         else:
-            self.IF_ID['instruction'] = self.NOP_INSTRUCTION
-            self.IF_ID['PC'] = self.PC
+            self.ongoing_stalls -= 1

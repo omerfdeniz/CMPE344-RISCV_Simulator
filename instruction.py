@@ -5,13 +5,19 @@ SB_TYPE_OPCODE = "1100111"  # beq
 
 INSTRUCTION_LEN = 64
 
-def get_instructions(program_path):
+def get_program(program_path):
+    with open(program_path, 'r') as f:
+        instruction_names = [line.strip() for line in f.readlines()]
     with open(program_path, 'r') as f:
         lines = [line.strip() for line in f.readlines()]
 
-    instructions = []
     init_lines = lines[:lines.index('---')]
     instruction_lines = lines[lines.index('---')+1:]
+
+    return init_lines, instruction_lines
+
+def parse_instructions(instruction_lines):
+    instructions = []
     # for each assembly code line, put together the intruction fields 
     # according to its instruction type
     for instruction in instruction_lines:
@@ -152,7 +158,7 @@ def get_instructions(program_path):
                 'immed': immed
             }
         instructions.append(instruction_fields)
-    return init_lines, instructions
+    return instructions
 
 
 def perform_ALU_operation(ALU_control, param1, param2):
@@ -200,10 +206,10 @@ def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12
 def get_nop_instruction():
     return {
                 'funct7': '0000000',
-                'rs2': 1,
-                'rs1': 1,
+                'rs2': 0,
+                'rs1': 0,
                 'funct3': '000',
-                'rd': 1,
+                'rd': 0,
                 'opcode': '0000000',
                 'immed': "00000000000000" # 12 bit
     }
