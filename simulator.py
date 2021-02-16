@@ -15,7 +15,7 @@ class Simulator:
         self.ALL_STAGES_NOP = True
 
         self.stalls = {}
-        self.ongoing_stalls = 0
+        self.STALL_OCCURRED = False
 
         self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] * 5
 
@@ -81,11 +81,20 @@ class Simulator:
         self.print_status()
         # while PC is valid and not all STAGES are filled with NOPs
         while(self.PC < len(self.INSTRUCTION_MEMORY) or not self.ALL_STAGES_NOP):
+            output_for_IF_ID = self.run_IF()
+            output_for_ID_EX = self.run_ID()
+            output_for_EX_MEM = self.run_EX()
+            output_for_MEM_WB = self.run_MEM()
             self.run_WB()
-            self.run_MEM()
-            self.run_EX()
-            self.run_ID()
-            self.run_IF()
+
+            if not self.STALL_OCCURRED:
+                self.IF_ID = output_for_IF_ID
+            else:
+                self.STALL_OCCURRED = False
+            self.ID_EX = output_for_ID_EX
+            self.EX_MEM = output_for_EX_MEM
+            self.MEM_WB = output_for_MEM_WB
+
             print(f"-----STATUS AT THE END OF CLOCK = {self.CLOCK}-----")
             print(*self.INSTRUCTIONS_IN_PIPELINE, sep=' | ', end="")
             print(" is run.")
@@ -139,7 +148,7 @@ class Simulator:
             read_from_memory = self.MEMORY[ALU_result]
         
         # write to stage registers
-        self.MEM_WB = {"read_from_memory": read_from_memory, "ALU_result": ALU_result, "rd": rd, "control": control}
+        return {"read_from_memory": read_from_memory, "ALU_result": ALU_result, "rd": rd, "control": control}
 
     def run_EX(self):
         # read from stage registers
@@ -210,7 +219,7 @@ class Simulator:
         ALU_zero = ALU_result == 0
 
         # write to stage registers
-        self.EX_MEM = {"PC_plus_OFFSET": PC_plus_OFFSET, "ALU_zero": ALU_zero, 
+        return {"PC_plus_OFFSET": PC_plus_OFFSET, "ALU_zero": ALU_zero, 
             "ALU_result": ALU_result, "rs1_data": rs1_data, "rd": rd, "control": control}
 
     def run_ID(self):
@@ -231,41 +240,30 @@ class Simulator:
 
         # check for hazard
         if self.ID_EX['control']['MemRead'] and ((self.ID_EX['rd'] == self.IF_ID['rs1']) or (self.ID_EX['rd'] == self.IF_ID['rs2'])):
-            # stall the pipeline
-            self.ID_EX['control'] = self.NOP_CONTROL
-            self.ongoing_stalls += 1
-            self.INSTRUCTIONS_IN_PIPELINE = self.INSTRUCTIONS_IN_PIPELINE[0:1] + ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[1:4]
+            self.STALL_OCCURRED = True
+            self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTIONS_IN_PIPELINE[1]] + ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[2:]
             stall_instruction = self.INSTRUCTIONS_IN_PIPELINE[2] # instruction in the ex stage causes the hazard
             # if already defined
             if stall_instruction in self.stalls:
                 self.stalls[stall_instruction] += 1
             else:
                 self.stalls[stall_instruction] = 1
+            return {"PC": 0, "rs1_data": 0, "rs2_data": 0, 
+            "imm_gen_offset": 0, "funct_for_alu_control": "0000", "rd": 0, 
+            "control": self.NOP_CONTROL, "rs1": None, "rs2": None}
         else:
             # write to stage registers
-            self.ID_EX['control'] = control # pass control to next stage
-            self.ID_EX['imm_gen_offset'] = imm_gen_offset
-            
-            self.ID_EX['rs1_data'] = rs1_data # not selecting the none values are handled by the control bits in EX stage
-            self.ID_EX['rs2_data'] = rs2_data
-            self.ID_EX['funct_for_alu_control'] = funct_for_alu_control
-            self.ID_EX['rd'] = rd
-            self.ID_EX['rs1'] = rs1
-            self.ID_EX['rs2'] = rs2
+            return {"PC": PC, "rs1_data": rs1_data, "rs2_data": rs2_data, 
+            "imm_gen_offset": imm_gen_offset, "funct_for_alu_control": funct_for_alu_control, "rd": rd, 
+            "control": control, "rs1": rs1, "rs2": rs2}
 
     def run_IF(self):
         # write to stage registers
-        if self.ongoing_stalls == 0:
-            if self.PC < len(self.INSTRUCTION_MEMORY):
-                new_instruction = self.INSTRUCTION_MEMORY[self.PC]
-                self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTIONS_NAMES[self.PC]] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
-                self.IF_ID['instruction'] = new_instruction
-                self.IF_ID['rs1'] = new_instruction['rs1']
-                self.IF_ID['rs2'] = new_instruction['rs2']
-                self.PC += 1
-            else:
-                self.IF_ID['instruction'] = self.NOP_INSTRUCTION
-                self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
-                self.IF_ID['PC'] = self.PC
+        if self.PC < len(self.INSTRUCTION_MEMORY):
+            new_instruction = self.INSTRUCTION_MEMORY[self.PC]
+            self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTIONS_NAMES[self.PC]] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
+            self.PC += 1
+            return {'PC':self.PC, 'instruction': new_instruction, 'rs1': new_instruction['rs1'], 'rs2': new_instruction['rs2']}
         else:
-            self.ongoing_stalls -= 1
+            self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
+            return {'PC':self.PC,'instruction': self.NOP_INSTRUCTION, 'rs1': 0, 'rs2': 0}
