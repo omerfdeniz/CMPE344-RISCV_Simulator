@@ -13,3 +13,13 @@ m[20]=10
 ---
 ld x2, 13(x1)
 add x4, x2, x5
+
+-----PROGRAM 3----- Ch4.1.40
+add x1,x2,x3
+sub x4,x1,x5 
+
+-----PROGRAM 4----- Ch4.1.41
+ld x1,0(x2)
+sub x4,x1,x5 
+
+--
