@@ -106,6 +106,7 @@ class Simulator:
             self.MEM_WB = output_for_MEM_WB
             # fill stage registers with NOP
             if self.FLUSH:
+                self.PC = self.PC_plus_OFFSET
                 self.IF_ID['instruction'] = self.NOP_INSTRUCTION
                 self.ID_EX['control'] = self.NOP_CONTROL
                 self.EX_MEM['control'] = self.NOP_CONTROL
@@ -153,11 +154,10 @@ class Simulator:
 
         # operate
         if control['Branch'] and ALU_zero: # if a branch instruction and rs1_data-rs2_data == 0
-            self.PC = PC_plus_OFFSET
+            self.PC_plus_OFFSET = PC_plus_OFFSET
             # flush instructions in the IF, ID, EX when MEM is executing
             self.FLUSH = True
             self.INSTRUCTIONS_IN_PIPELINE = ['NOP', 'NOP', 'NOP'] + self.INSTRUCTIONS_IN_PIPELINE[3:]
-
         if control['MemWrite']: # sd, will write to memory
             self.MEMORY[ALU_result] = rs1_data
 

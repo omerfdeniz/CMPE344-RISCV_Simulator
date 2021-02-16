@@ -11,21 +11,25 @@ def get_program(program_path):
     with open(program_path, 'r') as f:
         lines = [line.strip() for line in f.readlines()]
     init_lines = lines[:lines.index('---')]
-    instruction_lines = lines[lines.index('---')+1:]
+    program_lines = lines[lines.index('---')+1:]
 
     BRANCH_TABLE = {}
-    instruction_names = []
+    instruction_fullnames = []
     instructions = []
     # extract labels
-    for i, instruction in enumerate(instruction_lines):
+    for i, instruction in enumerate(program_lines):
         if instruction.endswith(':'): # if it is a label
             instruction_name = instruction.split(' ')[0]
-            BRANCH_TABLE[instruction_name[:-1]] = i * WORD_LEN // 2 # LINE*WORD_LEN/2, since sign extend will multiply it by 2
+            BRANCH_TABLE[instruction_name[:-1]] = i
+        else:
+            instruction_fullnames.append(instruction)
 
-    for instruction in instruction_lines:
-        if instruction.endswith(':'): # if it is a label, continue
+    # for each program line
+    for i, line in enumerate(program_lines):
+        # continue if it is a label
+        if line.endswith(':'):
             continue
-        instruction_names.append(instruction)
+        instruction = line
         instruction_name = instruction.split(' ')[0]
         instruction_fields = {}
 
@@ -150,8 +154,9 @@ def get_program(program_path):
             # fill the correct fields for this instruction
             rs1 = int(regs[0][1:])
             rs2 = int(regs[1][1:])
-
-            immed = BRANCH_TABLE[regs[2]]
+            
+            next_instruction = program_lines[BRANCH_TABLE[regs[2]]+1]
+            immed = (instruction_fullnames.index(next_instruction) - i)* WORD_LEN // 2
             immed = f'{immed:012b}' # convert to 12 bit representation
             instruction_fields = {
                 'funct7': None,
@@ -163,7 +168,7 @@ def get_program(program_path):
                 'immed': immed
             }
         instructions += [instruction_fields, 0, 0, 0]
-    return init_lines, instruction_names, instructions
+    return init_lines, instruction_fullnames, instructions
 
 # performs ALU operation according to ALU_control and params
 def perform_ALU_operation(ALU_control, param1, param2):
