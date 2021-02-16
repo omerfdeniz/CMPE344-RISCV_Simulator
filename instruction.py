@@ -10,8 +10,11 @@ WORD_LEN = 4
 def get_program(program_path):
     with open(program_path, 'r') as f:
         lines = [line.strip() for line in f.readlines()]
-    init_lines = lines[:lines.index('---')]
-    program_lines = lines[lines.index('---')+1:]
+    ind = -1
+    if '---' in lines:
+        ind = lines.index('---')
+    init_lines = lines[:ind]
+    program_lines = lines[ind+1:]
 
     BRANCH_TABLE = {}
     instruction_fullnames = []

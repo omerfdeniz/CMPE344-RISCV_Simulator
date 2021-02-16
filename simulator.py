@@ -100,6 +100,7 @@ class Simulator:
             if not self.STALL_OCCURRED:
                 self.IF_ID = output_for_IF_ID
             else: # self.IF_ID should be preserved if stall is occurred
+                self.PC -= self.WORD_LEN
                 self.STALL_OCCURRED = False   
             self.ID_EX = output_for_ID_EX
             self.EX_MEM = output_for_EX_MEM

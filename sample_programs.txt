@@ -49,3 +49,18 @@ lab2:
 add x5,x1,x1
 lab1:
 add x11,x1,x1
+-----PROGRAM 7----- Ch4.1.39
+x1=3
+x3=1
+---
+add x19, x0, x1
+sub x2, x19, x3
+-----PROGRAM 8----- Ch4.1.42
+ld x1, 0(x0)
+ld x2, 8(x0)
+add x3, x1, x2
+sd x3, 24(x0)
+ld x4, 16(x0)
+add x5, x1, x4
+sd x5, 32(x0)
+-----PROGRAM 6-----
