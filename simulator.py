@@ -60,7 +60,6 @@ class Simulator:
 
     # prints the status of the class variables for the current clock cycle
     def print_status(self):
-        print(f"PC: {self.PC}")
         for i, val in enumerate(self.REGISTERS):
             """if i == 16:
                 print()
@@ -89,6 +88,7 @@ class Simulator:
         self.print_status()
         # while PC is valid and not all STAGES are filled with NOPs
         while(self.PC < len(self.INSTRUCTION_MEMORY) or not self.ALL_STAGES_NOP):
+            PC_running = self.PC
             # run each stage separately before updating the stage registers
             output_for_IF_ID = self.run_IF()
             output_for_ID_EX = self.run_ID()
@@ -101,6 +101,7 @@ class Simulator:
                 self.IF_ID = output_for_IF_ID
             else: # self.IF_ID should be preserved if stall is occurred
                 self.PC -= self.WORD_LEN
+                PC_running -= self.WORD_LEN
                 self.STALL_OCCURRED = False   
             self.ID_EX = output_for_ID_EX
             self.EX_MEM = output_for_EX_MEM
@@ -116,7 +117,7 @@ class Simulator:
 
             print(f"-----STATUS AT THE END OF CLOCK = {self.CLOCK}-----")
             print(*self.INSTRUCTIONS_IN_PIPELINE, sep=' | ', end="")
-            print(" is run.")
+            print(f" is run at PC = {PC_running}")
             self.print_status()
             #break
             self.CLOCK += 1
