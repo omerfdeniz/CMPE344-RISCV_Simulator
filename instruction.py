@@ -4,25 +4,28 @@ S_TYPE_OPCODE = "0100011"  # sd
 SB_TYPE_OPCODE = "1100111"  # beq
 
 INSTRUCTION_LEN = 64
+WORD_LEN = 4
 
-# reads the program from the given program path
+# parses the instructions to their fields
 def get_program(program_path):
     with open(program_path, 'r') as f:
-        instruction_names = [line.strip() for line in f.readlines()]
-    with open(program_path, 'r') as f:
         lines = [line.strip() for line in f.readlines()]
-
     init_lines = lines[:lines.index('---')]
     instruction_lines = lines[lines.index('---')+1:]
 
-    return init_lines, instruction_lines
-
-# parses the instructions to their fields
-def parse_instructions(instruction_lines):
+    BRANCH_TABLE = {}
+    instruction_names = []
     instructions = []
-    # for each assembly code line, put together the intruction fields 
-    # according to its instruction type
+    # extract labels
+    for i, instruction in enumerate(instruction_lines):
+        if instruction.endswith(':'): # if it is a label
+            instruction_name = instruction.split(' ')[0]
+            BRANCH_TABLE[instruction_name[:-1]] = i * WORD_LEN // 2 # LINE*WORD_LEN/2, since sign extend will multiply it by 2
+
     for instruction in instruction_lines:
+        if instruction.endswith(':'): # if it is a label, continue
+            continue
+        instruction_names.append(instruction)
         instruction_name = instruction.split(' ')[0]
         instruction_fields = {}
 
@@ -147,8 +150,8 @@ def parse_instructions(instruction_lines):
             # fill the correct fields for this instruction
             rs1 = int(regs[0][1:])
             rs2 = int(regs[1][1:])
-            # immediate is assummed to be given as an offset (TALK ABOUT THIS LATER)
-            immed = int(regs[2])
+
+            immed = BRANCH_TABLE[regs[2]]
             immed = f'{immed:012b}' # convert to 12 bit representation
             instruction_fields = {
                 'funct7': None,
@@ -159,8 +162,8 @@ def parse_instructions(instruction_lines):
                 'opcode': '1100111',
                 'immed': immed
             }
-        instructions.append(instruction_fields)
-    return instructions
+        instructions += [instruction_fields, 0, 0, 0]
+    return init_lines, instruction_names, instructions
 
 # performs ALU operation according to ALU_control and params
 def perform_ALU_operation(ALU_control, param1, param2):

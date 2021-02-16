@@ -6,8 +6,9 @@ class Simulator:
         self.PC = 0 # PROGRAM COUNTER
         self.CLOCK = 1 # CLOCK
 
-        init_lines, self.INSTRUCTIONS_NAMES = get_program(program_path) # read program
-        self.INSTRUCTION_MEMORY = parse_instructions(self.INSTRUCTIONS_NAMES) # parse instructions
+        self.WORD_LEN = 4
+        self.FLUSH = False
+        init_lines, self.INSTRUCTION_NAMES, self.INSTRUCTION_MEMORY = get_program(program_path) # read program
         self.parse_inits(init_lines) # parse register and memory init commands
 
         self.NOP_INSTRUCTION = get_nop_instruction() # get nop instruction which has all fields 0
@@ -20,7 +21,7 @@ class Simulator:
         self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] * 5 # name of instructions in the pipeline, used only for reporting purposes
 
         # fields of the stage registers and their initial values for NOP instructions
-        self.IF_ID = {"PC": 0, "instruction": self.NOP_INSTRUCTION, 'rs1': 0, 'rs2': 0}
+        self.IF_ID = {"PC": 0, "instruction": self.NOP_INSTRUCTION}
         self.ID_EX = {"PC": 0, "rs1_data": 0, "rs2_data": 0, 
             "imm_gen_offset": 0, "funct_for_alu_control": "0000", "rd": 0, 
             "control": self.NOP_CONTROL, "rs1": None, "rs2": None}
@@ -99,10 +100,17 @@ class Simulator:
             if not self.STALL_OCCURRED:
                 self.IF_ID = output_for_IF_ID
             else: # self.IF_ID should be preserved if stall is occurred
-                self.STALL_OCCURRED = False
+                self.STALL_OCCURRED = False   
             self.ID_EX = output_for_ID_EX
             self.EX_MEM = output_for_EX_MEM
             self.MEM_WB = output_for_MEM_WB
+            # fill stage registers with NOP
+            if self.FLUSH:
+                self.IF_ID['instruction'] = self.NOP_INSTRUCTION
+                self.ID_EX['control'] = self.NOP_CONTROL
+                self.EX_MEM['control'] = self.NOP_CONTROL
+                self.FLUSH = False
+
 
             print(f"-----STATUS AT THE END OF CLOCK = {self.CLOCK}-----")
             print(*self.INSTRUCTIONS_IN_PIPELINE, sep=' | ', end="")
@@ -147,9 +155,8 @@ class Simulator:
         if control['Branch'] and ALU_zero: # if a branch instruction and rs1_data-rs2_data == 0
             self.PC = PC_plus_OFFSET
             # flush instructions in the IF, ID, EX when MEM is executing
-            self.IF_ID['instruction'] = self.NOP_INSTRUCTION
-            self.ID_EX['control'] = self.NOP_CONTROL
-            self.EX_MEM['control'] = self.NOP_CONTROL
+            self.FLUSH = True
+            self.INSTRUCTIONS_IN_PIPELINE = ['NOP', 'NOP', 'NOP'] + self.INSTRUCTIONS_IN_PIPELINE[3:]
 
         if control['MemWrite']: # sd, will write to memory
             self.MEMORY[ALU_result] = rs1_data
@@ -252,7 +259,7 @@ class Simulator:
         rd = instruction['rd']
 
         # check for hazard
-        if self.ID_EX['control']['MemRead'] and ((self.ID_EX['rd'] == self.IF_ID['rs1']) or (self.ID_EX['rd'] == self.IF_ID['rs2'])):
+        if self.ID_EX['control']['MemRead'] and ((self.ID_EX['rd'] == self.IF_ID['instruction']['rs1']) or (self.ID_EX['rd'] == self.IF_ID['instruction']['rs2'])):
             self.STALL_OCCURRED = True
             self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTIONS_IN_PIPELINE[1]] + ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[2:]
             stall_instruction = self.INSTRUCTIONS_IN_PIPELINE[2] # instruction in the ex stage causes the hazard
@@ -276,9 +283,10 @@ class Simulator:
         # if not all instructions are entered the pipeline
         if self.PC < len(self.INSTRUCTION_MEMORY):
             new_instruction = self.INSTRUCTION_MEMORY[self.PC]
-            self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTIONS_NAMES[self.PC]] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
-            self.PC += 1
-            return {'PC':self.PC, 'instruction': new_instruction, 'rs1': new_instruction['rs1'], 'rs2': new_instruction['rs2']}
+            self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTION_NAMES[self.PC // self.WORD_LEN]] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
+            PC = self.PC 
+            self.PC += self.WORD_LEN
+            return {'PC':PC, 'instruction': new_instruction, 'rs1': new_instruction['rs1'], 'rs2': new_instruction['rs2']}
         else: # add NOP to the pipeline
             self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
-            return {'PC':self.PC,'instruction': self.NOP_INSTRUCTION, 'rs1': 0, 'rs2': 0}
+            return {'PC':self.PC,'instruction': self.NOP_INSTRUCTION}
