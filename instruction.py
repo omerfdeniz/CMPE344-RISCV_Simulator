@@ -5,6 +5,7 @@ SB_TYPE_OPCODE = "1100111"  # beq
 
 INSTRUCTION_LEN = 64
 
+# reads the program from the given program path
 def get_program(program_path):
     with open(program_path, 'r') as f:
         instruction_names = [line.strip() for line in f.readlines()]
@@ -16,6 +17,7 @@ def get_program(program_path):
 
     return init_lines, instruction_lines
 
+# parses the instructions to their fields
 def parse_instructions(instruction_lines):
     instructions = []
     # for each assembly code line, put together the intruction fields 
@@ -160,7 +162,7 @@ def parse_instructions(instruction_lines):
         instructions.append(instruction_fields)
     return instructions
 
-
+# performs ALU operation according to ALU_control and params
 def perform_ALU_operation(ALU_control, param1, param2):
     if ALU_control == '0010':
         # function ADD
@@ -177,8 +179,7 @@ def perform_ALU_operation(ALU_control, param1, param2):
     else:
         return None
 
-
-# returns int
+# returns integer of the sign extended version of the given instruction's offset
 def sign_extend(instruction):
     immed = instruction['immed']
     # if immed is none
@@ -189,7 +190,7 @@ def sign_extend(instruction):
         (INSTRUCTION_LEN - 12) + immed[1:]
     return int(extended_offset, 2)  # "111" -> 7
 
-
+# returns the alu_control bits for the given ALU_op and funct_for_alu_control
 def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12
     if ALU_op == "00" or ALU_op == "01": 
         return ALU_op + "10"
@@ -203,6 +204,7 @@ def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12
         else:
             return "0001"
 
+# get nop instruction fields
 def get_nop_instruction():
     return {
                 'funct7': '0000000',
@@ -213,7 +215,7 @@ def get_nop_instruction():
                 'opcode': '0000000',
                 'immed': "00000000000000" # 12 bit
     }
-
+# get nop control values
 def get_nop_control():
     return {
             'ALUSrc': 0,
@@ -225,6 +227,7 @@ def get_nop_control():
             'ALUOp1': 0,
             'ALUOp0': 0
         }
+# get control values for the given instruction
 def get_control_values(instruction):
     if instruction == get_nop_instruction():
         return get_nop_control()
@@ -274,6 +277,7 @@ def get_control_values(instruction):
         }
     return control_values
 
+# calculate the instruction[30,14-12] which is used in finding ALU_control for the given instruction
 def get_funct_for_alu_control(instruction):
     if instruction['funct7'] != None:
         return instruction['funct7'][1] + instruction['funct3']

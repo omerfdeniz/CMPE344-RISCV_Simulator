@@ -1,24 +1,25 @@
 from instruction import *
 class Simulator:
     def __init__(self, program_path):
-        self.REGISTERS = [0] * 32
-        self.MEMORY = [0] * 1000
-        self.PC = 0
-        self.CLOCK = 1
+        self.REGISTERS = [0] * 32 # REGISTER FILE
+        self.MEMORY = [0] * 1000 # MEMORY
+        self.PC = 0 # PROGRAM COUNTER
+        self.CLOCK = 1 # CLOCK
 
-        init_lines, self.INSTRUCTIONS_NAMES = get_program(program_path)
-        self.INSTRUCTION_MEMORY = parse_instructions(self.INSTRUCTIONS_NAMES) # list of dictionaries
-        self.parse_inits(init_lines)
+        init_lines, self.INSTRUCTIONS_NAMES = get_program(program_path) # read program
+        self.INSTRUCTION_MEMORY = parse_instructions(self.INSTRUCTIONS_NAMES) # parse instructions
+        self.parse_inits(init_lines) # parse register and memory init commands
 
-        self.NOP_INSTRUCTION = get_nop_instruction() # get nop instruction which has all values 0
+        self.NOP_INSTRUCTION = get_nop_instruction() # get nop instruction which has all fields 0
         self.NOP_CONTROL = get_nop_control() # all fields are 0
-        self.ALL_STAGES_NOP = True
+        self.ALL_STAGES_NOP = True # used to check if all stages are having NOP instructions
 
-        self.stalls = {}
-        self.STALL_OCCURRED = False
+        self.stalls = {} # dictinary that holds instruction name and their stall counts
+        self.STALL_OCCURRED = False # flag to check stall occurred in the current clock
 
-        self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] * 5
+        self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] * 5 # name of instructions in the pipeline, used only for reporting purposes
 
+        # fields of the stage registers and their initial values for NOP instructions
         self.IF_ID = {"PC": 0, "instruction": self.NOP_INSTRUCTION, 'rs1': 0, 'rs2': 0}
         self.ID_EX = {"PC": 0, "rs1_data": 0, "rs2_data": 0, 
             "imm_gen_offset": 0, "funct_for_alu_control": "0000", "rd": 0, 
@@ -42,17 +43,21 @@ class Simulator:
                 val = int(init[eq_index+1:])
                 self.MEMORY[mem_index] = val
 
+    # writes to register if not x0 and parameters are not None
     def write_to_register(self, index, value):
         if index == 0 or index == None or value == None:
             return
         else:
             self.REGISTERS[index] = value
 
+    # reads from register
     def read_register(self, index):
         if index == None or index >= len(self.REGISTERS):
             return 0
         else:
             return self.REGISTERS[index]
+
+    # prints the status of the class variables for the current clock cycle
     def print_status(self):
         print(f"PC: {self.PC}")
         for i, val in enumerate(self.REGISTERS):
@@ -63,6 +68,7 @@ class Simulator:
                 print(f"x{i}: {val}",end=" ") # FOR DEBUG PURPOSES
         print()
     
+    # prints the final report for the program
     def print_final_report(self):
         print()
         print(f"-----FINAL REPORT-----")
@@ -75,21 +81,24 @@ class Simulator:
         for i, num in self.stalls.items():
             print(f"---> {i}: {num}")
 
+    # main method to run the simulator
     def run(self):
         print(f"-----STATUS AT THE BEGINNING-----")
         print(*self.INSTRUCTIONS_IN_PIPELINE, sep=' | ')
         self.print_status()
         # while PC is valid and not all STAGES are filled with NOPs
         while(self.PC < len(self.INSTRUCTION_MEMORY) or not self.ALL_STAGES_NOP):
+            # run each stage separately before updating the stage registers
             output_for_IF_ID = self.run_IF()
             output_for_ID_EX = self.run_ID()
             output_for_EX_MEM = self.run_EX()
             output_for_MEM_WB = self.run_MEM()
             self.run_WB()
 
+            # update the stage registers
             if not self.STALL_OCCURRED:
                 self.IF_ID = output_for_IF_ID
-            else:
+            else: # self.IF_ID should be preserved if stall is occurred
                 self.STALL_OCCURRED = False
             self.ID_EX = output_for_ID_EX
             self.EX_MEM = output_for_EX_MEM
@@ -101,7 +110,7 @@ class Simulator:
             self.print_status()
             #break
             self.CLOCK += 1
-            # if all registers are full of control values of zero
+            # if all registers are full of control values of zero, namely NOPs update the flag
             if ((self.IF_ID['instruction'] == self.NOP_INSTRUCTION and self.ID_EX['control'] == self.EX_MEM['control']) and
                 (self.EX_MEM['control'] == self.MEM_WB['control'] and self.MEM_WB['control'] == self.NOP_CONTROL)):
                 self.ALL_STAGES_NOP = True
@@ -109,7 +118,8 @@ class Simulator:
                 self.ALL_STAGES_NOP = False
         self.CLOCK -= 1
         self.print_final_report()
-        
+    
+    # runs the WB stage
     def run_WB(self):
         # read from stage registers
         control = self.MEM_WB['control'] # read control from previous stage
@@ -123,6 +133,7 @@ class Simulator:
             else: # r-type: write the ALU_result to rd
                 self.write_to_register(rd, ALU_result)
 
+    # runs the MEM stage
     def run_MEM(self):
         # read from stage registers
         control = self.EX_MEM['control'] # read control from previous stage
@@ -133,7 +144,7 @@ class Simulator:
         rd = self.EX_MEM['rd']
 
         # operate
-        if control['Branch'] and ALU_zero: # if a branch instruction and rs1_data-rs2_data==0
+        if control['Branch'] and ALU_zero: # if a branch instruction and rs1_data-rs2_data == 0
             self.PC = PC_plus_OFFSET
             # flush instructions in the IF, ID, EX when MEM is executing
             self.IF_ID['instruction'] = self.NOP_INSTRUCTION
@@ -147,12 +158,13 @@ class Simulator:
         if control['MemRead']: # ld, will write to register file
             read_from_memory = self.MEMORY[ALU_result]
         
-        # write to stage registers
+        # return the output to be written to MEM_WB
         return {"read_from_memory": read_from_memory, "ALU_result": ALU_result, "rd": rd, "control": control}
 
+    # runs the EX stage
     def run_EX(self):
         # read from stage registers
-        control = self.ID_EX['control'] # read control from previous stage
+        control = self.ID_EX['control'] 
         PC = self.ID_EX['PC']
         rs1_data = self.ID_EX['rs1_data']
         rs2_data = self.ID_EX['rs2_data']
@@ -181,7 +193,7 @@ class Simulator:
             ForwardB = "01"
 
         ALU_control = get_alu_control(str(control['ALUOp1'])+str(control['ALUOp0']), funct_for_alu_control)
-        PC_plus_OFFSET = PC + 2 * imm_gen_offset
+        PC_plus_OFFSET = PC + 2 * imm_gen_offset # calculate PC offset
         ALU_result = None
         if ForwardA == "00":
             param1 = rs1_data
@@ -218,10 +230,11 @@ class Simulator:
                 ALU_result = perform_ALU_operation(ALU_control, param1, imm_gen_offset)
         ALU_zero = ALU_result == 0
 
-        # write to stage registers
+        # return the output to be written to EX_MEM
         return {"PC_plus_OFFSET": PC_plus_OFFSET, "ALU_zero": ALU_zero, 
             "ALU_result": ALU_result, "rs1_data": rs1_data, "rd": rd, "control": control}
 
+    # runs the ID stage
     def run_ID(self):
         # read from stage registers
         instruction = self.IF_ID['instruction']
@@ -229,7 +242,7 @@ class Simulator:
 
         # operate
         control = get_control_values(instruction) # calculate control
-        imm_gen_offset = sign_extend(instruction)
+        imm_gen_offset = sign_extend(instruction) # sign extend the offset
         rs1 = instruction['rs1']
         rs2 = instruction['rs2']
         rs1_data = self.read_register(rs1)
@@ -248,22 +261,24 @@ class Simulator:
                 self.stalls[stall_instruction] += 1
             else:
                 self.stalls[stall_instruction] = 1
+            # return the output to be written to ID_EX
             return {"PC": 0, "rs1_data": 0, "rs2_data": 0, 
             "imm_gen_offset": 0, "funct_for_alu_control": "0000", "rd": 0, 
             "control": self.NOP_CONTROL, "rs1": None, "rs2": None}
         else:
-            # write to stage registers
+            # return the output to be written to ID_EX
             return {"PC": PC, "rs1_data": rs1_data, "rs2_data": rs2_data, 
             "imm_gen_offset": imm_gen_offset, "funct_for_alu_control": funct_for_alu_control, "rd": rd, 
             "control": control, "rs1": rs1, "rs2": rs2}
 
+    # runs the IF stage
     def run_IF(self):
-        # write to stage registers
+        # if not all instructions are entered the pipeline
         if self.PC < len(self.INSTRUCTION_MEMORY):
             new_instruction = self.INSTRUCTION_MEMORY[self.PC]
             self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTIONS_NAMES[self.PC]] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
             self.PC += 1
             return {'PC':self.PC, 'instruction': new_instruction, 'rs1': new_instruction['rs1'], 'rs2': new_instruction['rs2']}
-        else:
+        else: # add NOP to the pipeline
             self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
             return {'PC':self.PC,'instruction': self.NOP_INSTRUCTION, 'rs1': 0, 'rs2': 0}
