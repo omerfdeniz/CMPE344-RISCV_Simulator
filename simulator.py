@@ -8,6 +8,7 @@ class Simulator:
         self.WORD_LEN = 4
         self.FLUSH = False
 
+        self.FINISHED_INSTRUCTION_COUNT = 0
         init_lines, self.INSTRUCTION_NAMES, self.INSTRUCTION_MEMORY = get_program(program_path) # read program
         self.parse_inits(init_lines) # parse register and memory init commands
         
@@ -76,13 +77,15 @@ class Simulator:
         print()
         print(f"-----FINAL REPORT-----")
         print(f"Total # of Clock Cycles: {self.CLOCK}")
-        CPI = self.CLOCK / len(self.INSTRUCTION_MEMORY)
+        CPI = self.CLOCK / self.FINISHED_INSTRUCTION_COUNT
         print(f"Cycles per Instruction(CPI): {CPI}")
-        num_stalls = 0
-        print(f"Total # of Stalls: {len(self.stalls)}")
-        print(f"Instructions and # of Stalls Caused: ")
-        for i, num in self.stalls.items():
-            print(f"---> {i}: {num}")
+        if len(self.stalls) == 0:
+            print("No stall occurred.")
+        else:
+            print(f"Total # of Stalls: {len(self.stalls)}")
+            print(f"Instructions and # of Stalls Caused: ")
+            for i, num in self.stalls.items():
+                print(f"---> {i}: {num}")
 
     # main method to run the simulator
     def run(self):
@@ -144,6 +147,8 @@ class Simulator:
                 self.write_to_register(rd, read_from_memory)
             else: # r-type: write the ALU_result to rd
                 self.write_to_register(rd, ALU_result)
+        if control != self.NOP_CONTROL:
+            self.FINISHED_INSTRUCTION_COUNT += 1
 
     # runs the MEM stage
     def run_MEM(self):
