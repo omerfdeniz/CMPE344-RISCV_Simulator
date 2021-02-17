@@ -5,13 +5,11 @@ class Simulator:
         self.MEMORY = [0] * 1000 # MEMORY
         self.PC = 0 # PROGRAM COUNTER
         self.CLOCK = 1 # CLOCK
-
         self.WORD_LEN = 4
         self.FLUSH = False
+
         init_lines, self.INSTRUCTION_NAMES, self.INSTRUCTION_MEMORY = get_program(program_path) # read program
         self.parse_inits(init_lines) # parse register and memory init commands
-
-        self.IS_FETCHED = False
         
         self.NOP_INSTRUCTION = get_nop_instruction() # get nop instruction which has all fields 0
         self.NOP_CONTROL = get_nop_control() # all fields are 0
@@ -95,19 +93,16 @@ class Simulator:
         while(self.PC < len(self.INSTRUCTION_MEMORY) or not self.ALL_STAGES_NOP):
             PC_running = self.PC
             # run each stage separately before updating the stage registers
-            output_for_IF_ID = self.run_IF()
-            output_for_ID_EX = self.run_ID()
-            output_for_EX_MEM = self.run_EX()
-            output_for_MEM_WB = self.run_MEM()
             self.run_WB()
+            output_for_MEM_WB = self.run_MEM()
+            output_for_EX_MEM = self.run_EX()
+            output_for_ID_EX = self.run_ID()
+            output_for_IF_ID = self.run_IF()
 
             # update the stage registers
             if not self.STALL_OCCURRED:
                 self.IF_ID = output_for_IF_ID
             else: # self.IF_ID should be preserved if stall is occurred and instruction is fetched
-                if output_for_IF_ID['instruction'] != self.NOP_INSTRUCTION:
-                    self.PC -= self.WORD_LEN
-                    PC_running -= self.WORD_LEN
                 self.STALL_OCCURRED = False
             self.ID_EX = output_for_ID_EX
             self.EX_MEM = output_for_EX_MEM
@@ -273,7 +268,7 @@ class Simulator:
         # check for hazard
         if self.ID_EX['control']['MemRead'] and ((self.ID_EX['rd'] == self.IF_ID['instruction']['rs1']) or (self.ID_EX['rd'] == self.IF_ID['instruction']['rs2'])):
             self.STALL_OCCURRED = True
-            self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTIONS_IN_PIPELINE[1]] + ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[2:]
+            self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTIONS_IN_PIPELINE[0]] + ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[1:-1]
             stall_instruction = self.INSTRUCTIONS_IN_PIPELINE[2] # instruction in the ex stage causes the hazard
             # if already defined
             if stall_instruction in self.stalls:
@@ -293,14 +288,13 @@ class Simulator:
     # runs the IF stage
     def run_IF(self):
         # if not all instructions are entered the pipeline
-        if self.PC < len(self.INSTRUCTION_MEMORY):
+        if self.PC < len(self.INSTRUCTION_MEMORY) and not self.STALL_OCCURRED:
             new_instruction = self.INSTRUCTION_MEMORY[self.PC]
             self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTION_NAMES[self.PC // self.WORD_LEN]] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
             PC = self.PC 
             self.PC += self.WORD_LEN
-            self.IS_FETCHED = True
             return {'PC':PC, 'instruction': new_instruction, 'rs1': new_instruction['rs1'], 'rs2': new_instruction['rs2']}
         else: # add NOP to the pipeline
-            self.IS_FETCHED = False
-            self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
+            if not self.STALL_OCCURRED:
+                self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
             return {'PC':self.PC,'instruction': self.NOP_INSTRUCTION}
