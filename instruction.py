@@ -190,12 +190,6 @@ def perform_ALU_operation(ALU_control, param1, param2):
     else:
         return None
 
-def int_to_bits(val, length):
-    if val >= 0:
-        return f'{val:0{length}b}' 
-    else:
-        return '1'+f'{abs(2**length-abs(val)):0{length}b}'[1:]
-
 # returns the alu_control bits for the given ALU_op and funct_for_alu_control
 def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12
     if ALU_op == "00" or ALU_op == "01":

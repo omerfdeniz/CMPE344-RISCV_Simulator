@@ -62,9 +62,6 @@ class Simulator:
     # prints the status of the class variables for the current clock cycle
     def print_status(self):
         for i, val in enumerate(self.REGISTERS):
-            """if i == 16:
-                print()
-            print(f"x{i}: {val}",end=" ")"""
             if val != 0:
                 print(f"x{i}: {val}",end=" ") # FOR DEBUG PURPOSES
         for i, val in enumerate(self.MEMORY):
