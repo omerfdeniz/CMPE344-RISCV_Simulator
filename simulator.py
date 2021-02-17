@@ -160,7 +160,7 @@ class Simulator:
             self.PC_plus_OFFSET = PC_plus_OFFSET
             # flush instructions in the IF, ID, EX when MEM is executing
             self.FLUSH = True
-            self.INSTRUCTIONS_IN_PIPELINE = ['NOP', 'NOP', 'NOP'] + self.INSTRUCTIONS_IN_PIPELINE[3:]
+            self.INSTRUCTIONS_IN_PIPELINE = ['NOP', 'NOP'] + self.INSTRUCTIONS_IN_PIPELINE[2:]
         if control['MemWrite']: # sd, will write to memory
             self.MEMORY[ALU_result] = rs1_data
 
@@ -288,6 +288,9 @@ class Simulator:
     # runs the IF stage
     def run_IF(self):
         # if not all instructions are entered the pipeline
+        if self.FLUSH:
+            self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
+            return {'PC':self.PC,'instruction': self.NOP_INSTRUCTION}
         if self.PC < len(self.INSTRUCTION_MEMORY) and not self.STALL_OCCURRED:
             new_instruction = self.INSTRUCTION_MEMORY[self.PC]
             self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTION_NAMES[self.PC // self.WORD_LEN]] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
