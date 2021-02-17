@@ -11,6 +11,8 @@ class Simulator:
         init_lines, self.INSTRUCTION_NAMES, self.INSTRUCTION_MEMORY = get_program(program_path) # read program
         self.parse_inits(init_lines) # parse register and memory init commands
 
+        self.IS_FETCHED = False
+        
         self.NOP_INSTRUCTION = get_nop_instruction() # get nop instruction which has all fields 0
         self.NOP_CONTROL = get_nop_control() # all fields are 0
         self.ALL_STAGES_NOP = True # used to check if all stages are having NOP instructions
@@ -66,6 +68,9 @@ class Simulator:
             print(f"x{i}: {val}",end=" ")"""
             if val != 0:
                 print(f"x{i}: {val}",end=" ") # FOR DEBUG PURPOSES
+        for i, val in enumerate(self.MEMORY):
+            if val != 0:
+                print(f"m[{i}]: {val}",end=" ") # FOR DEBUG PURPOSES
         print()
     
     # prints the final report for the program
@@ -99,10 +104,11 @@ class Simulator:
             # update the stage registers
             if not self.STALL_OCCURRED:
                 self.IF_ID = output_for_IF_ID
-            else: # self.IF_ID should be preserved if stall is occurred
-                self.PC -= self.WORD_LEN
-                PC_running -= self.WORD_LEN
-                self.STALL_OCCURRED = False   
+            else: # self.IF_ID should be preserved if stall is occurred and instruction is fetched
+                if output_for_IF_ID['instruction'] != self.NOP_INSTRUCTION:
+                    self.PC -= self.WORD_LEN
+                    PC_running -= self.WORD_LEN
+                self.STALL_OCCURRED = False
             self.ID_EX = output_for_ID_EX
             self.EX_MEM = output_for_EX_MEM
             self.MEM_WB = output_for_MEM_WB
@@ -204,10 +210,13 @@ class Simulator:
         ALU_control = get_alu_control(str(control['ALUOp1'])+str(control['ALUOp0']), funct_for_alu_control)
         PC_plus_OFFSET = PC + 2 * imm_gen_offset # calculate PC offset
         ALU_result = None
+        param1 = 0
+        param2 = 0
         if ForwardA == "00":
             param1 = rs1_data
         elif ForwardA == "10":
-            param1 = self.EX_MEM['ALU_result'] 
+            rs1_data = self.EX_MEM['ALU_result']
+            param1 = rs1_data 
         elif ForwardA == "01":
             if self.MEM_WB['control']['RegWrite']:
                 read_from_memory = self.MEM_WB['read_from_memory']
@@ -220,7 +229,8 @@ class Simulator:
         if ForwardB == "00":
             param2 = rs2_data
         elif ForwardB == "10":
-            param2 = self.EX_MEM['ALU_result'] 
+            rs2_data = self.EX_MEM['ALU_result']
+            param1 = rs2_data 
         elif ForwardB == "01":
             if self.MEM_WB['control']['RegWrite']:
                 read_from_memory = self.MEM_WB['read_from_memory']
@@ -288,7 +298,9 @@ class Simulator:
             self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTION_NAMES[self.PC // self.WORD_LEN]] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
             PC = self.PC 
             self.PC += self.WORD_LEN
+            self.IS_FETCHED = True
             return {'PC':PC, 'instruction': new_instruction, 'rs1': new_instruction['rs1'], 'rs2': new_instruction['rs2']}
         else: # add NOP to the pipeline
+            self.IS_FETCHED = False
             self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
             return {'PC':self.PC,'instruction': self.NOP_INSTRUCTION}

@@ -19,8 +19,12 @@ add x1,x2,x3
 sub x4,x1,x5 
 
 -----PROGRAM 4----- Ch4.1.41
+x2=1
+m[1]=10
+x5=4
+---
 ld x1,0(x2)
-sub x4,x1,x5 
+sub x4,x1,x5
 
 -----PROGRAM 5-----
 x1=7
@@ -56,6 +60,11 @@ x3=1
 add x19, x0, x1
 sub x2, x19, x3
 -----PROGRAM 8----- Ch4.1.42
+m[0]=2
+m[8]=3
+m[16]=23
+x4=9
+---
 ld x1, 0(x0)
 ld x2, 8(x0)
 add x3, x1, x2
@@ -63,4 +72,15 @@ sd x3, 24(x0)
 ld x4, 16(x0)
 add x5, x1, x4
 sd x5, 32(x0)
------PROGRAM 6-----
+-----PROGRAM 9----- # EX Hazard
+x1=3
+x3=9
+---
+add x19, x0, x1
+sub x2, x19, x3
+-----PROGRAM 10----- # MEM Hazard
+x1=3
+x3=9
+---
+add x19, x0, x1
+sub x2, x19, x3
