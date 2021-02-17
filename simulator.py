@@ -79,7 +79,7 @@ class Simulator:
         if len(self.stalls) == 0:
             print("No stall occurred.")
         else:
-            print(f"Total # of Stalls: {len(self.stalls)}")
+            print(f"Total # of Stalls: {sum(self.stalls.values())}")
             print(f"Instructions and # of Stalls Caused: ")
             for i, num in self.stalls.items():
                 print(f"---> {i}: {num}")
