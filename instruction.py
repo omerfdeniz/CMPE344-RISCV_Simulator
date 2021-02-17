@@ -28,7 +28,7 @@ def get_program(program_path):
             instruction_fullnames.append(instruction)
 
     # for each program line
-    for i, line in enumerate(program_lines):
+    for i, line in enumerate(instruction_fullnames):
         # continue if it is a label
         if line.endswith(':'):
             continue
@@ -51,7 +51,7 @@ def get_program(program_path):
                 'funct3': '000',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': None
+                'immed': 0
             }
         elif instruction_name == 'and':
             # get the register names from assembly instruction string
@@ -69,7 +69,7 @@ def get_program(program_path):
                 'funct3': '111',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': None
+                'immed': 0
             }
         elif instruction_name == 'or':
             # get the register names from assembly instruction string
@@ -87,7 +87,7 @@ def get_program(program_path):
                 'funct3': '110',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': None
+                'immed': 0
             }
         elif instruction_name == 'sub':
             # get the register names from assembly instruction string
@@ -105,7 +105,7 @@ def get_program(program_path):
                 'funct3': '000',
                 'rd': rd,
                 'opcode': '0110011',
-                'immed': None
+                'immed': 0
             }
         elif instruction_name == 'ld':
             # get the register names from assembly instruction string
@@ -118,7 +118,7 @@ def get_program(program_path):
             rs1 = int(regs[1][regs[1].find('(') + 1: regs[1].find(')')][1:])
             # find immed by looking at the string just before the parentheses
             immed = int(regs[1][:regs[1].find('(')])
-            immed = f'{immed:012b}' # convert to 12 bit representation
+            #immed = f'{immed:012b}' # convert to 12 bit representation
             instruction_fields = {
                 'funct7': None,
                 'rs2': None,
@@ -139,7 +139,7 @@ def get_program(program_path):
             rs2 = int(regs[1][regs[1].find('(') + 1: regs[1].find(')')][1:])
             # find immed by looking at the string just before the parentheses
             immed = int(regs[1][:regs[1].find('(')])
-            immed = f'{immed:012b}' # convert to 12 bit representation
+            #immed = f'{immed:012b}' # convert to 12 bit representation
             instruction_fields = {
                 'funct7': None,
                 'rs2': rs2,
@@ -159,8 +159,8 @@ def get_program(program_path):
             rs2 = int(regs[1][1:])
             
             next_instruction = program_lines[BRANCH_TABLE[regs[2]]+1]
-            immed = (instruction_fullnames.index(next_instruction) - i)* WORD_LEN // 2
-            immed = f'{immed:012b}' # convert to 12 bit representation
+            immed = (instruction_fullnames.index(next_instruction) - i) * WORD_LEN // 2
+            #immed = f'{immed:012b}' # convert to 12 bit representation
             instruction_fields = {
                 'funct7': None,
                 'rs2': rs2,
@@ -190,20 +190,15 @@ def perform_ALU_operation(ALU_control, param1, param2):
     else:
         return None
 
-# returns integer of the sign extended version of the given instruction's offset
-def sign_extend(instruction):
-    immed = instruction['immed']
-    # if immed is none
-    if not immed:
-        return 0
-    sign_bit = immed[0]
-    extended_offset = sign_bit * \
-        (INSTRUCTION_LEN - 12) + immed[1:]
-    return int(extended_offset, 2)  # "111" -> 7
+def int_to_bits(val, length):
+    if val >= 0:
+        return f'{val:0{length}b}' 
+    else:
+        return '1'+f'{abs(2**length-abs(val)):0{length}b}'[1:]
 
 # returns the alu_control bits for the given ALU_op and funct_for_alu_control
 def get_alu_control(ALU_op, funct_for_alu_control):  # used fig 4.12
-    if ALU_op == "00" or ALU_op == "01": 
+    if ALU_op == "00" or ALU_op == "01":
         return ALU_op + "10"
     else:
         if funct_for_alu_control[0] == "0" and funct_for_alu_control[1:] == "000":
@@ -224,7 +219,7 @@ def get_nop_instruction():
                 'funct3': '000',
                 'rd': 0,
                 'opcode': '0000000',
-                'immed': "00000000000000" # 12 bit
+                'immed': 0 # 12 bit
     }
 # get nop control values
 def get_nop_control():

@@ -266,7 +266,7 @@ class Simulator:
 
         # operate
         control = get_control_values(instruction) # calculate control
-        imm_gen_offset = sign_extend(instruction) # sign extend the offset
+        imm_gen_offset = instruction['immed'] # sign extend the offset
         rs1 = instruction['rs1']
         rs2 = instruction['rs2']
         rs1_data = self.read_register(rs1)
