@@ -166,6 +166,11 @@ class Simulator:
             # flush instructions in the IF, ID, EX when MEM is executing
             self.FLUSH = True
             self.INSTRUCTIONS_IN_PIPELINE = ['NOP', 'NOP'] + self.INSTRUCTIONS_IN_PIPELINE[2:]
+            stall_instruction = self.INSTRUCTIONS_IN_PIPELINE[2]
+            if stall_instruction in self.stalls:
+                self.stalls[stall_instruction] += 3 # since flush adds two stalls to the pipeline
+            else:
+                self.stalls[stall_instruction] = 3
         if control['MemWrite']: # sd, will write to memory
             self.MEMORY[ALU_result] = rs1_data
 
