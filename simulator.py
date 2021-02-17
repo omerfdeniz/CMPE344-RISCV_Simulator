@@ -230,7 +230,7 @@ class Simulator:
             param2 = rs2_data
         elif ForwardB == "10":
             rs2_data = self.EX_MEM['ALU_result']
-            param1 = rs2_data 
+            param2 = rs2_data 
         elif ForwardB == "01":
             if self.MEM_WB['control']['RegWrite']:
                 read_from_memory = self.MEM_WB['read_from_memory']
