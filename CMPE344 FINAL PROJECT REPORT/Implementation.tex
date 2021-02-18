@@ -1,0 +1,355 @@
+\chapter{Implementation and Modules}
+\section{Input Format}
+Simulator expects a path to a plain text file given as a first argument when running the code(see Chapter 3 for more details on running the simulator). Following segment is an example program.txt file.
+\vspace{0.5 cm}
+
+\begin{lstlisting}
+x1=7
+x2=18
+m[5]=5
+---
+add x5,x1,x5
+sub x1,x3,x2
+ld x1,0(x5)
+beq x1, x3, equal
+equal:
+add x6, x7, x8
+\end{lstlisting}
+\vspace{0.5 cm}
+
+\noindent In our input format, lines that come before the --- separator line(line 4 in the above segment) are used for initializing the registers and memory of the simulator. This allows us to start the simulation in a more flexible set of states as by default all the memory and the registers are initialized at 0. Line 3 is a format for initalizing the memory. (addresses start at 0 and we are assuming double word addressing.)
+\\
+
+\noindent The lines that come after the --- separator line is the assembly code. Simulator can only process the instructions and, or, add, sub, beq, ld and sd. We are checking for excess whitespaces or similar formatting problems but still it is best to comply with the format shown in above segment.
+
+\section{Modules}
+\subsection{Simulator Class (simulator.py)}
+\subsubsection{Constructor}
+We have created a class for the simulation that keeps all the relevant data in the memory. Following code segment contains its constructor method. As can be seen in the first lines of the constructor method, registers and memory are kept as Python lists of corresponding sizes. \\
+
+\noindent 
+At the lines 24 to 30, one can see the initialization of the registers IF\_ID, ID\_EX, EX\_MEM, MEM\_WB. These registers are kept as Python dictionaries and they are the main channel of communication between the different stages of the pipelined execution. At every stage, the corresponding methods for that stage change the values that are written in these variables. They are intended to simulate the datapath circuitry in a one to one correspondance with the Figure \ref{fig:datapath}  
+\\ 
+
+\noindent This class also contains many more helper and/or main methods that we have omitted in this section due to inconvenience. They can be fully accessed through the code files.
+
+\vspace{0.5 cm}
+\begin{lstlisting}
+class Simulator:
+    def __init__(self, program_path):
+        self.REGISTERS = [0] * 32 # REGISTER FILE
+        self.MEMORY = [0] * 1000 # MEMORY
+        self.PC = 0 # PROGRAM COUNTER
+        self.CLOCK = 1 # CLOCK
+        self.WORD_LEN = 4
+        self.FLUSH = False
+
+        self.FINISHED_INSTRUCTION_COUNT = 0
+        init_lines, self.INSTRUCTION_NAMES, self.INSTRUCTION_MEMORY = get_program(program_path) # read program
+        self.parse_inits(init_lines) # parse register and memory init commands
+        
+        self.NOP_INSTRUCTION = get_nop_instruction() # get nop instruction which has all fields 0
+        self.NOP_CONTROL = get_nop_control() # all fields are 0
+        self.ALL_STAGES_NOP = True # used to check if all stages are having NOP instructions
+
+        self.stalls = {} # dictinary that holds instruction name and their stall counts
+        self.STALL_OCCURRED = False # flag to check stall occurred in the current clock
+
+        self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] * 5 # name of instructions in the pipeline, used only for reporting purposes
+
+        # fields of the stage registers and their initial values for NOP instructions
+        self.IF_ID = {"PC": 0, "instruction": self.NOP_INSTRUCTION}
+        self.ID_EX = {"PC": 0, "rs1_data": 0, "rs2_data": 0, 
+            "imm_gen_offset": 0, "funct_for_alu_control": "0000", "rd": 0, 
+            "control": self.NOP_CONTROL, "rs1": None, "rs2": None}
+        self.EX_MEM = {"PC_plus_OFFSET": 0, "ALU_zero": 0, "ALU_result": 0, "rs1_data": 0, "rd": None,
+            "control": self.NOP_CONTROL}
+        self.MEM_WB = {"read_from_memory": 0, "ALU_result": 0, "rd": None, "control": self.NOP_CONTROL}
+\end{lstlisting}
+
+
+\subsubsection{run() method}
+This is the main method that runs the simulation in a loop. Following is the code segment for the definition of this method from simulator.py. As can be seen in the line 6, while loop continues to execute the simulation until the PC reaches to end of the program or all of the stages have a NOP instructions in them. Former condition checks if the simulation is finished with all the instructions and the latter condition makes sure that no instruction is left in anywhere in the pipeline.
+\\
+
+\noindent In the lines 9 to 13, the simulation is happening as all the stages are run one by one, one after each other. All the stage outputs are in the format of their corresponding registers.
+\\
+
+\noindent The condition in the line 24 is to make sure the pipeline is flushed if a branching has occurred as if it is the case that branch condition is met, FLUSH variable will be set to True. We haven't implemented a branch prediction unit, therefore we need to flush every time. 
+\vspace{0.5 cm}
+\begin{lstlisting}
+    def run(self):
+        print(f"-----STATUS AT THE BEGINNING-----")
+        print(*self.INSTRUCTIONS_IN_PIPELINE, sep=' | ')
+        self.print_status()
+        # while PC is valid and not all STAGES are filled with NOPs
+        while(self.PC < len(self.INSTRUCTION_MEMORY) or not self.ALL_STAGES_NOP):
+            PC_running = self.PC
+            # run each stage separately before updating the stage registers
+            self.run_WB()
+            output_for_MEM_WB = self.run_MEM()
+            output_for_EX_MEM = self.run_EX()
+            output_for_ID_EX = self.run_ID()
+            output_for_IF_ID = self.run_IF()
+
+            # update the stage registers
+            if not self.STALL_OCCURRED:
+                self.IF_ID = output_for_IF_ID
+            else: # self.IF_ID should be preserved if stall is occurred and instruction is fetched
+                self.STALL_OCCURRED = False
+            self.ID_EX = output_for_ID_EX
+            self.EX_MEM = output_for_EX_MEM
+            self.MEM_WB = output_for_MEM_WB
+            # fill stage registers with NOP
+            if self.FLUSH:
+                self.PC = self.PC_plus_OFFSET
+                self.IF_ID['instruction'] = self.NOP_INSTRUCTION
+                self.ID_EX['control'] = self.NOP_CONTROL
+                self.EX_MEM['control'] = self.NOP_CONTROL
+                self.FLUSH = False
+
+
+            print(f"-----STATUS AT THE END OF CLOCK = {self.CLOCK}-----")
+            print(*self.INSTRUCTIONS_IN_PIPELINE, sep=' | ', end="")
+            print(f" is run at PC = {PC_running}")
+            self.print_status()
+            #break
+            self.CLOCK += 1
+            # if all registers are full of control values of zero, namely NOPs update the flag
+            if ((self.IF_ID['instruction'] == self.NOP_INSTRUCTION and self.ID_EX['control'] == self.EX_MEM['control']) and
+                (self.EX_MEM['control'] == self.MEM_WB['control'] and self.MEM_WB['control'] == self.NOP_CONTROL)):
+                self.ALL_STAGES_NOP = True
+            else:
+                self.ALL_STAGES_NOP = False
+        self.CLOCK -= 1
+        self.print_final_report()
+\end{lstlisting}
+\subsubsection{run\_IF() method}
+This is the method that simulates the IF stage. Following is a code segment that contains its definition from the simulator.py file. The method simply fetches a new instruction from the instruction memory if the PC hasn't reached the end of the file. Members of the INSTRUCTION\_MEMORY contains the instructions as dictionaries with field such as rs1, rs2, rd etc. The return value of this function has the same structure as the IF\_ID register as it is going to be used to update that register.
+
+\vspace{0.5 cm}
+\begin{lstlisting}
+    def run_IF(self):
+        # if not all instructions are entered the pipeline
+        if self.FLUSH:
+            self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
+            return {'PC':self.PC,'instruction': self.NOP_INSTRUCTION}
+        if self.PC < len(self.INSTRUCTION_MEMORY) and not self.STALL_OCCURRED:
+            new_instruction = self.INSTRUCTION_MEMORY[self.PC]
+            self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTION_NAMES[self.PC // self.WORD_LEN]] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
+            PC = self.PC 
+            self.PC += self.WORD_LEN
+            return {'PC':PC, 'instruction': new_instruction, 'rs1': new_instruction['rs1'], 'rs2': new_instruction['rs2']}
+        else: # add NOP to the pipeline
+            if not self.STALL_OCCURRED:
+                self.INSTRUCTIONS_IN_PIPELINE = ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[:-1]
+            return {'PC':self.PC,'instruction': self.NOP_INSTRUCTION}
+\end{lstlisting}
+
+\subsubsection{run\_ID() method}
+This is the method that simulates the ID stage. Following is a code segment that contains its definition from the simulator.py file. The method starts by accessing the instruction via the IF\_ID register. It uses some helper functions from the instruction.py file to get the related control values of that instruction. A hazard control unit for load use hazard is also implemented in this method as it can be seen at the line 18 and onward. This hazard can only be solved by adding a stall to the pipeline. The output format of this method has the same structure as ID\_EX register as it is going to be used to update that register.
+\vspace{0.5 cm}
+\begin{lstlisting}
+    def run_ID(self):
+        # read from stage registers
+        instruction = self.IF_ID['instruction']
+        PC = self.IF_ID['PC']
+
+        # operate
+        control = get_control_values(instruction) # calculate control
+        imm_gen_offset = instruction['immed'] # sign extend the offset
+        rs1 = instruction['rs1']
+        rs2 = instruction['rs2']
+        rs1_data = self.read_register(rs1)
+        rs2_data = self.read_register(rs2)
+        # will be used for setting ALU control in EX
+        funct_for_alu_control = get_funct_for_alu_control(instruction)
+        rd = instruction['rd']
+
+        # check for hazard
+        if self.ID_EX['control']['MemRead'] and ((self.ID_EX['rd'] == self.IF_ID['instruction']['rs1']) or (self.ID_EX['rd'] == self.IF_ID['instruction']['rs2'])):
+            self.STALL_OCCURRED = True
+            self.INSTRUCTIONS_IN_PIPELINE = [self.INSTRUCTIONS_IN_PIPELINE[0]] + ['NOP'] + self.INSTRUCTIONS_IN_PIPELINE[1:-1]
+            stall_instruction = self.INSTRUCTIONS_IN_PIPELINE[2] # instruction in the ex stage causes the hazard
+            # if already defined
+            if stall_instruction in self.stalls:
+                self.stalls[stall_instruction] += 1
+            else:
+                self.stalls[stall_instruction] = 1
+            # return the output to be written to ID_EX
+            return {"PC": 0, "rs1_data": 0, "rs2_data": 0, 
+            "imm_gen_offset": 0, "funct_for_alu_control": "0000", "rd": 0, 
+            "control": self.NOP_CONTROL, "rs1": None, "rs2": None}
+        else:
+            # return the output to be written to ID_EX
+            return {"PC": PC, "rs1_data": rs1_data, "rs2_data": rs2_data, 
+            "imm_gen_offset": imm_gen_offset, "funct_for_alu_control": funct_for_alu_control, "rd": rd, 
+            "control": control, "rs1": rs1, "rs2": rs2}
+\end{lstlisting}
+
+\subsubsection{run\_EX() method}
+This is the method that simulates the EX stage. Following is a code segment that contains its definition from the simulator.py file. The method starts by accessing the relevant data via the ID\_EX register. As can be seen starting from the line 16, method contains a forwarding unit to address EX and MEM hazards. After deciding on the hazard type by logical operations, method updates the corresponding forwarding unit bits. At the line 64 and onward it executes the EX stage by using the values that came from ID\_EX register or forwarded values if there are any. The output format of this method has the same structure as EX\_MEM register as it is going to be used to update that register.
+\vspace{0.5 cm}
+\begin{lstlisting}
+    def run_EX(self):
+        # read from stage registers
+        control = self.ID_EX['control'] 
+        PC = self.ID_EX['PC']
+        rs1_data = self.ID_EX['rs1_data']
+        rs2_data = self.ID_EX['rs2_data']
+        imm_gen_offset = self.ID_EX['imm_gen_offset']
+        funct_for_alu_control = self.ID_EX['funct_for_alu_control']
+        rs1 = self.ID_EX['rs1']
+        rs2 = self.ID_EX['rs2']
+        rd = self.ID_EX['rd']
+
+        # operate
+        # forwarding unit
+        # EX Hazard: pg 300 in the book
+        ForwardA = "00"
+        ForwardB = "00"
+        if (self.EX_MEM['control']['RegWrite'] and (self.EX_MEM['rd'] != 0) and (self.EX_MEM['rd'] == self.ID_EX['rs1'])):
+            ForwardA = "10"
+        if (self.EX_MEM['control']['RegWrite'] and (self.EX_MEM['rd'] != 0) and (self.EX_MEM['rd'] == self.ID_EX['rs2'])):
+            ForwardB = "10"
+
+        # MEM Hazard: pg 301 in the book
+        if (self.MEM_WB['control']['RegWrite'] and (self.MEM_WB['rd'] != 0) and not(self.EX_MEM['control']['RegWrite'] 
+            and (self.EX_MEM['rd'] != 0) and (self.EX_MEM['rd'] == self.ID_EX['rs1'])) and (self.MEM_WB['rd'] == self.ID_EX['rs1'])):
+            ForwardA = "01"
+        if (self.MEM_WB['control']['RegWrite'] and (self.MEM_WB['rd'] != 0) and not(self.EX_MEM['control']['RegWrite'] 
+            and (self.EX_MEM['rd'] != 0) and (self.EX_MEM['rd'] == self.ID_EX['rs2'])) and (self.MEM_WB['rd'] == self.ID_EX['rs2'])):
+            ForwardB = "01"
+
+        ALU_control = get_alu_control(str(control['ALUOp1'])+str(control['ALUOp0']), funct_for_alu_control)
+        PC_plus_OFFSET = PC + 2 * imm_gen_offset # calculate PC offset
+        ALU_result = None
+        param1 = 0
+        param2 = 0
+        if ForwardA == "00":
+            param1 = rs1_data
+        elif ForwardA == "10":
+            rs1_data = self.EX_MEM['ALU_result']
+            param1 = rs1_data 
+        elif ForwardA == "01":
+            if self.MEM_WB['control']['RegWrite']:
+                read_from_memory = self.MEM_WB['read_from_memory']
+                ALU_result = self.MEM_WB['ALU_result']
+                if self.MEM_WB['control']['MemToReg']: # ld: write the value at rs2+offset to rs1, else do not write to reg
+                    param1 = read_from_memory
+                else: # r-type: write the ALU_result to rd
+                    param1 = ALU_result
+
+        if ForwardB == "00":
+            param2 = rs2_data
+        elif ForwardB == "10":
+            rs2_data = self.EX_MEM['ALU_result']
+            param2 = rs2_data 
+        elif ForwardB == "01":
+            if self.MEM_WB['control']['RegWrite']:
+                read_from_memory = self.MEM_WB['read_from_memory']
+                ALU_result = self.MEM_WB['ALU_result']
+                if self.MEM_WB['control']['MemToReg']: # ld: write the value at rs2+offset to rs1, else do not write to reg
+                    param2 = read_from_memory
+                else: # r-type: write the ALU_result to rd
+                    param2 = ALU_result
+
+        if control['ALUSrc'] == 0: # r-format or beq
+            ALU_result = perform_ALU_operation(ALU_control, param1, param2)
+        elif control['ALUSrc'] == 1: # ld, sd
+            if control['MemWrite'] == 1: # sd: rs2_data+offset
+                ALU_result = perform_ALU_operation(ALU_control, param2, imm_gen_offset)
+            else: # ld: rs1_data+offset
+                ALU_result = perform_ALU_operation(ALU_control, param1, imm_gen_offset)
+        ALU_zero = ALU_result == 0
+
+        # return the output to be written to EX_MEM
+        return {"PC_plus_OFFSET": PC_plus_OFFSET, "ALU_zero": ALU_zero, 
+            "ALU_result": ALU_result, "rs1_data": rs1_data, "rd": rd, "control": control}
+\end{lstlisting}
+
+\subsubsection{run\_MEM() method}
+This is the method that simulates the MEM stage. Following is a code segment that contains its definition from the simulator.py file. The method starts by accessing the relevant data via the EX\_MEM register. It then proceeds to execute the MEM stage by checking if the instruction is a branch with branch condition met, sd with MemWrite set or ld with MemRead set. It creates a flush in the case of branch condition met and otherwise, it executes the corresponding memory operations and creates an output. The output format of this method has the same structure as MEM\_WB register as it is going to be used to update that register.
+\vspace{0.5 cm}
+\begin{lstlisting}
+    def run_MEM(self):
+        # read from stage registers
+        control = self.EX_MEM['control'] # read control from previous stage
+        PC_plus_OFFSET = self.EX_MEM['PC_plus_OFFSET']
+        ALU_zero = self.EX_MEM['ALU_zero']
+        ALU_result = self.EX_MEM['ALU_result']
+        rs1_data = self.EX_MEM['rs1_data']
+        rd = self.EX_MEM['rd']
+
+        # operate
+        if control['Branch'] and ALU_zero: # if a branch instruction and rs1_data-rs2_data == 0
+            self.PC_plus_OFFSET = PC_plus_OFFSET
+            # flush instructions in the IF, ID, EX when MEM is executing
+            self.FLUSH = True
+            self.INSTRUCTIONS_IN_PIPELINE = ['NOP', 'NOP'] + self.INSTRUCTIONS_IN_PIPELINE[2:]
+            stall_instruction = self.INSTRUCTIONS_IN_PIPELINE[2]
+            if stall_instruction in self.stalls:
+                self.stalls[stall_instruction] += 3 # since flush adds two stalls to the pipeline
+            else:
+                self.stalls[stall_instruction] = 3
+        if control['MemWrite']: # sd, will write to memory
+            self.MEMORY[ALU_result] = rs1_data
+
+        read_from_memory = None
+        if control['MemRead']: # ld, will write to register file
+            read_from_memory = self.MEMORY[ALU_result]
+        
+        # return the output to be written to MEM_WB
+        return {"read_from_memory": read_from_memory, "ALU_result": ALU_result, "rd": rd, "control": control}
+\end{lstlisting}
+
+\subsubsection{run\_WB() method}
+This is the method that simulates the WB stage. Following is a code segment that contains its definition from the simulator.py file. The method starts by accessing the relevant data via the MEM\_WB register. It then proceeds to execute WB stage by checking the values of RegWrite and MemToReg values to decide if the instruction is ld or an R-type instruction and writes to corresponding registers accordingly.
+\vspace{0.5 cm}
+\begin{lstlisting}
+        def run_WB(self):
+        # read from stage registers
+        control = self.MEM_WB['control'] # read control from previous stage
+        read_from_memory = self.MEM_WB['read_from_memory']
+        ALU_result = self.MEM_WB['ALU_result']
+        rd = self.MEM_WB['rd']
+        # operate
+        if control['RegWrite']:
+            if control['MemToReg']: # ld: write the value at rs2+offset to rs1, else do not write to reg
+                self.write_to_register(rd, read_from_memory)
+            else: # r-type: write the ALU_result to rd
+                self.write_to_register(rd, ALU_result)
+        if control != self.NOP_CONTROL:
+            self.FINISHED_INSTRUCTION_COUNT += 1
+\end{lstlisting}
+
+\subsection{Helper Functions (simulator.py)}
+Simulator class contains many helper functions that are related to memory and register operations, stage executions and output printing. We omitted the code segments because they are long and redundant in many cases. Following is a list of helper functions in this file, briefly explained.
+
+\begin{itemize}
+    \item parse\_inits(self, init\_lines): This method parses and executes the register and memory initialialization lines of the input program file.
+    \item write\_to\_register(self, index, value): This method writes the value to the register given as index, unless it is the register x0.
+    \item read\_register(self, index): This method reads and returns the value of the given register.
+    \item print\_status(self): This method prints the current values of registers and memory to the console but it omits the values that are equal to 0 for convenience.
+    \item print\_final\_report(self): This method prints the final report on the simulation of the program. It is intended to be used when the execution is finished. It prints the values total number of clock cycles, CPI, total number of stalls, number of stalls caused by specific instructions.
+    
+    
+\end{itemize}
+
+
+\subsection{Helper Functions (instruction.py)}
+This module contains many helper functions that are related to instructions, control values, ALU operations, parsing from the input program etc. We omitted the code segments because they are long and redundant in many cases. Following is a list of helper functions in this file, briefly explained.
+
+\begin{itemize}
+    \item get\_program(program\_path): This method parses the input program file and processes the instruction lines. Restructures all the instructions as an ordered list of dictionaries that contain fields such as rs1, rd, funct7 etc. Returns a list of those restructured instructions.
+    \item perform\_ALU\_operation(ALU\_Control, param1, param2): This method takes a binary string ALU\_Control and decides on which operation to execute on parameters, Essentially simulates an ALU unit.    
+    \item get\_alu\_control(ALU\_op, funct\_for\_alu\_control): This method returns the ALU\_Control binary string used by ALU unit by calculating it using its parameters.
+    \item get\_nop\_instruction(): This method returns structured fields corresponding to a NOP instruction.
+    \item get\_control\_values(instruction): This method returns a dictionary containing control values using the given instruction's opcode field.
+    
+    
+\end{itemize}
+\subsection{main.py}
+This module is the runner program for the simulator. It processes the arguments given to the program and initializes the simulator accordingly.
+\section{Output Format}
+The simulator prints all its output to the console as formatted text. It can be printed into a file using terminal specific commands. The program outputs information about the status of the pipeline on every clock cycle and creates a final report containing statistics at the end of the execution. See Section 4 for sample executions and outputs.

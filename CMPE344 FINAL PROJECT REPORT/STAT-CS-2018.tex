@@ -1,0 +1,65 @@
+%% CHANGE THIS ACCORDINGLY:
+\newcommand{\authorFullName}{Ömer Faruk Deniz, Özdeniz Dolu}
+\newcommand{\authorSchoolNumber}{2016400003, 2015400009}
+%% AND NAME THE PROJECT UCO-surname-firstname-STAT-CS-YEAR (with or without dashes)
+
+\newcommand{\courseName}{CMPE344 Final Project III Report}
+
+\documentclass[12pt, oneside]{report}
+\usepackage[margin=0.85in]{geometry}
+\linespread{1}
+\usepackage{xcolor}
+\usepackage[colorlinks=false, linkbordercolor=white, citebordercolor=white, 
+    filebordercolor=white, urlbordercolor=white]{hyperref}
+    
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead{}
+\fancyhead[L]{\courseName\ -- Assignment}
+\fancyhead[R]{\authorFullName}
+\fancyfoot{}
+\fancyfoot[C]{\thepage}
+
+\usepackage{titlesec}
+\titlespacing{\chapter}{0pt}{*4}{*2.5}
+
+\titleformat{\chapter}{\normalfont\huge\bf}{\thechapter}{20pt}{\huge\bf}
+
+
+% definition of an environment
+\usepackage{listings}
+\definecolor{deepblue}{rgb}{0,0,0.5}
+\definecolor{deepred}{rgb}{0.6,0,0}
+\definecolor{deepgreen}{rgb}{0,0.5,0}
+\definecolor{burntsienna}{rgb}{0.91, 0.45, 0.32}
+
+\lstset{
+language=Python,
+basicstyle=\ttm,
+morekeywords={self},              % Add keywords here
+keywordstyle=\ttb\color{deepblue},
+commentstyle=\ttb\color{burntsienna},
+emph={MyClass,__init__},          % Custom highlighting
+emphstyle=\ttb\color{deepred},    % Custom highlighting style
+stringstyle=\color{deepgreen},
+frame=tb,                         % Any extra options here
+showstringspaces=false,
+numbers=left,
+breaklines=true
+}
+
+\begin{document}
+\input{stka-title-page-template-eng}
+\tableofcontents
+\addtocontents{toc}{~\hfill\textbf{Page}\par}
+\input{Introduction} % inputs file with main text
+\input{Implementation} % inputs file with main text
+\input{Execution} % inputs file with main text
+\input{Samples} % inputs file with main text
+\end{document}

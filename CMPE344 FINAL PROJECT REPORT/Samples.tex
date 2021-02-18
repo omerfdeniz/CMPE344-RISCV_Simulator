@@ -1,0 +1,343 @@
+\chapter{Sample Simulations \& Outputs}
+\noindent In this section, we investigate the simulator outputs on a number of different input programs.
+
+\section{EX Hazard Example}
+As we can see in output, no stalls have been introduced in dealing with this hazard as it is dealt by the forwarding unit. Total number of cycles is 6 as intended since the first instruction runs for 5 cycles and the second instruction tailing it add 1 more cycle to it. We see that final value for x2 is -6 and x19 is 3 which is correct. This example is taken from Chapter 4 Part 1 Slide 39.
+\\
+
+\noindent Input program:
+\vspace{0.5 cm}
+\begin{lstlisting}
+x1=3
+x3=9
+---
+add x19, x0, x1
+sub x2, x19, x3
+\end{lstlisting}
+\vspace{0.5 cm}
+Simulator output:
+\vspace{0.5 cm}
+\begin{lstlisting}
+-----STATUS AT THE BEGINNING-----
+NOP | NOP | NOP | NOP | NOP
+x1: 3 x3: 9 
+-----STATUS AT THE END OF CLOCK = 1-----
+add x19, x0, x1 | NOP | NOP | NOP | NOP is run at PC = 0
+x1: 3 x3: 9 
+-----STATUS AT THE END OF CLOCK = 2-----
+sub x2, x19, x3 | add x19, x0, x1 | NOP | NOP | NOP is run at PC = 4
+x1: 3 x3: 9 
+-----STATUS AT THE END OF CLOCK = 3-----
+NOP | sub x2, x19, x3 | add x19, x0, x1 | NOP | NOP is run at PC = 8
+x1: 3 x3: 9 
+-----STATUS AT THE END OF CLOCK = 4-----
+NOP | NOP | sub x2, x19, x3 | add x19, x0, x1 | NOP is run at PC = 8
+x1: 3 x3: 9 
+-----STATUS AT THE END OF CLOCK = 5-----
+NOP | NOP | NOP | sub x2, x19, x3 | add x19, x0, x1 is run at PC = 8
+x1: 3 x3: 9 x19: 3 
+-----STATUS AT THE END OF CLOCK = 6-----
+NOP | NOP | NOP | NOP | sub x2, x19, x3 is run at PC = 8
+x1: 3 x2: -6 x3: 9 x19: 3 
+
+-----FINAL REPORT-----
+Total # of Clock Cycles: 6
+Cycles per Instruction(CPI): 3
+No stall occurred.
+\end{lstlisting}
+
+\section{Load-Use Hazard Example}
+As we can see in the output, a stall has been inserted at the ID stage of load instruction as a load-use hazard has been detected in the run\_ID() method. This additional stall has increased the total number of cycles to 7 which makes the CPI 3.5. As we can see the final values of the x1 and x4, the instructions has been executed correctly as the results are as expected from the program. This example is taken from Chapter 4 Part 1 Slide 41.
+\\
+
+\noindent Input program:
+\vspace{0.5 cm}
+\begin{lstlisting}
+x2=1
+m[1]=10
+x5=4
+---
+ld x1,0(x2)
+sub x4,x1,x5
+
+\end{lstlisting}
+\vspace{0.5 cm}
+Simulator output:
+\vspace{0.5 cm}
+\begin{lstlisting}
+-----STATUS AT THE BEGINNING-----
+NOP | NOP | NOP | NOP | NOP
+x2: 1 x5: 4 m[1]: 10 
+-----STATUS AT THE END OF CLOCK = 1-----
+ld x1,0(x2) | NOP | NOP | NOP | NOP is run at PC = 0
+x2: 1 x5: 4 m[1]: 10 
+-----STATUS AT THE END OF CLOCK = 2-----
+sub x4,x1,x5 | ld x1,0(x2) | NOP | NOP | NOP is run at PC = 4
+x2: 1 x5: 4 m[1]: 10 
+-----STATUS AT THE END OF CLOCK = 3-----
+sub x4,x1,x5 | NOP | ld x1,0(x2) | NOP | NOP is run at PC = 8
+x2: 1 x5: 4 m[1]: 10 
+-----STATUS AT THE END OF CLOCK = 4-----
+NOP | sub x4,x1,x5 | NOP | ld x1,0(x2) | NOP is run at PC = 8
+x2: 1 x5: 4 m[1]: 10 
+-----STATUS AT THE END OF CLOCK = 5-----
+NOP | NOP | sub x4,x1,x5 | NOP | ld x1,0(x2) is run at PC = 8
+x1: 10 x2: 1 x5: 4 m[1]: 10 
+-----STATUS AT THE END OF CLOCK = 6-----
+NOP | NOP | NOP | sub x4,x1,x5 | NOP is run at PC = 8
+x1: 10 x2: 1 x5: 4 m[1]: 10 
+-----STATUS AT THE END OF CLOCK = 7-----
+NOP | NOP | NOP | NOP | sub x4,x1,x5 is run at PC = 8
+x1: 10 x2: 1 x4: 6 x5: 4 m[1]: 10 
+
+-----FINAL REPORT-----
+Total # of Clock Cycles: 7
+Cycles per Instruction(CPI): 3.5
+Total # of Stalls: 1
+Instructions and # of Stalls Caused: 
+---> ld x1,0(x2): 1
+\end{lstlisting}
+
+\section{Multiple Hazards Example}
+We see that in this input program there are multiple hazards. At lines 7 and 8 of the input program there is a load-use hazard, at lines 10 and 11 of the program there is another load-use hazard, at lines 8 and 9 there is an EX hazard and at lines 11 and 12 there is an EX hazard. Since EX hazards are dealt by the forwarding unit, no stalls have been introduced by them. We see that the two load-use hazards are dealt by introducing 2 different stalls. We see that the code correctly identified those stalls are resulted by the ld instructions and reported it. Looking at the final values of the registers and the memory, we see that all of the instructions have been executed correctly and the values are as expected from the program. This example is taken from Chapter 4 Part 1 Slide 42.
+\\
+
+\noindent Input program:
+\vspace{0.5 cm}
+\begin{lstlisting}
+m[0]=2
+m[8]=3
+m[16]=23
+x4=9
+---
+ld x1, 0(x0)
+ld x2, 8(x0)
+add x3, x1, x2
+sd x3, 24(x0)
+ld x4, 16(x0)
+add x5, x1, x4
+sd x5, 32(x0)
+\end{lstlisting}
+\vspace{0.5 cm}
+Simulator output:
+\vspace{0.5 cm}
+\begin{lstlisting}
+-----STATUS AT THE BEGINNING-----
+NOP | NOP | NOP | NOP | NOP
+x4: 9 m[0]: 2 m[8]: 3 m[16]: 23 
+-----STATUS AT THE END OF CLOCK = 1-----
+ld x1, 0(x0) | NOP | NOP | NOP | NOP is run at PC = 0
+x4: 9 m[0]: 2 m[8]: 3 m[16]: 23 
+-----STATUS AT THE END OF CLOCK = 2-----
+ld x2, 8(x0) | ld x1, 0(x0) | NOP | NOP | NOP is run at PC = 4
+x4: 9 m[0]: 2 m[8]: 3 m[16]: 23 
+-----STATUS AT THE END OF CLOCK = 3-----
+add x3, x1, x2 | ld x2, 8(x0) | ld x1, 0(x0) | NOP | NOP is run at PC = 8
+x4: 9 m[0]: 2 m[8]: 3 m[16]: 23 
+-----STATUS AT THE END OF CLOCK = 4-----
+add x3, x1, x2 | NOP | ld x2, 8(x0) | ld x1, 0(x0) | NOP is run at PC = 12
+x4: 9 m[0]: 2 m[8]: 3 m[16]: 23 
+-----STATUS AT THE END OF CLOCK = 5-----
+sd x3, 24(x0) | add x3, x1, x2 | NOP | ld x2, 8(x0) | ld x1, 0(x0) is run at PC = 12
+x1: 2 x4: 9 m[0]: 2 m[8]: 3 m[16]: 23 
+-----STATUS AT THE END OF CLOCK = 6-----
+ld x4, 16(x0) | sd x3, 24(x0) | add x3, x1, x2 | NOP | ld x2, 8(x0) is run at PC = 16
+x1: 2 x2: 3 x4: 9 m[0]: 2 m[8]: 3 m[16]: 23 
+-----STATUS AT THE END OF CLOCK = 7-----
+add x5, x1, x4 | ld x4, 16(x0) | sd x3, 24(x0) | add x3, x1, x2 | NOP is run at PC = 20
+x1: 2 x2: 3 x4: 9 m[0]: 2 m[8]: 3 m[16]: 23 
+-----STATUS AT THE END OF CLOCK = 8-----
+add x5, x1, x4 | NOP | ld x4, 16(x0) | sd x3, 24(x0) | add x3, x1, x2 is run at PC = 24
+x1: 2 x2: 3 x3: 5 x4: 9 m[0]: 2 m[8]: 3 m[16]: 23 m[24]: 5 
+-----STATUS AT THE END OF CLOCK = 9-----
+sd x5, 32(x0) | add x5, x1, x4 | NOP | ld x4, 16(x0) | sd x3, 24(x0) is run at PC = 24
+x1: 2 x2: 3 x3: 5 x4: 9 m[0]: 2 m[8]: 3 m[16]: 23 m[24]: 5 
+-----STATUS AT THE END OF CLOCK = 10-----
+NOP | sd x5, 32(x0) | add x5, x1, x4 | NOP | ld x4, 16(x0) is run at PC = 28
+x1: 2 x2: 3 x3: 5 x4: 23 m[0]: 2 m[8]: 3 m[16]: 23 m[24]: 5 
+-----STATUS AT THE END OF CLOCK = 11-----
+NOP | NOP | sd x5, 32(x0) | add x5, x1, x4 | NOP is run at PC = 28
+x1: 2 x2: 3 x3: 5 x4: 23 m[0]: 2 m[8]: 3 m[16]: 23 m[24]: 5 
+-----STATUS AT THE END OF CLOCK = 12-----
+NOP | NOP | NOP | sd x5, 32(x0) | add x5, x1, x4 is run at PC = 28
+x1: 2 x2: 3 x3: 5 x4: 23 x5: 25 m[0]: 2 m[8]: 3 m[16]: 23 m[24]: 5 m[32]: 25 
+-----STATUS AT THE END OF CLOCK = 13-----
+NOP | NOP | NOP | NOP | sd x5, 32(x0) is run at PC = 28
+x1: 2 x2: 3 x3: 5 x4: 23 x5: 25 m[0]: 2 m[8]: 3 m[16]: 23 m[24]: 5 m[32]: 25 
+
+-----FINAL REPORT-----
+Total # of Clock Cycles: 13
+Cycles per Instruction(CPI): 1.8571428571428572
+Total # of Stalls: 2
+Instructions and # of Stalls Caused: 
+---> ld x2, 8(x0): 1
+---> ld x4, 16(x0): 1
+\end{lstlisting}
+
+\section{Branching Example}
+In this example we see a simple branching code. During execution of the first 2 instructions, we see that simulator detects that the branching condition is met at EX stage and therefore it flushes the remaining 3 instructions in the pipeline and jumps to the label lab1. This of course introduces new cycles due to the flushed stages, and as we see 3 stalls are counted at the end due to the flush. In the end we see that the execution is completed in 10 cycles. Since only 3 instructions are executed in total, the CPI value 3.33 is correct. Looking at the final values of the registers, we see that all of the values are correct and as expected from the code.
+\\
+
+\noindent Input program:
+\vspace{0.5 cm}
+\begin{lstlisting}
+x1=7
+x2=3
+x3=4
+---
+add x6,x2,x2
+beq x1,x1,lab1
+add x7,x3,x3
+add x10,x3,x3
+lab2:
+add x5,x1,x1
+lab1:
+add x11,x1,x1
+\end{lstlisting}
+\vspace{0.5 cm}
+Simulator output:
+\vspace{0.5 cm}
+\begin{lstlisting}
+-----STATUS AT THE BEGINNING-----
+NOP | NOP | NOP | NOP | NOP
+x1: 7 x2: 3 x3: 4 
+-----STATUS AT THE END OF CLOCK = 1-----
+add x6,x2,x2 | NOP | NOP | NOP | NOP is run at PC = 0
+x1: 7 x2: 3 x3: 4 
+-----STATUS AT THE END OF CLOCK = 2-----
+beq x1,x1,lab1 | add x6,x2,x2 | NOP | NOP | NOP is run at PC = 4
+x1: 7 x2: 3 x3: 4 
+-----STATUS AT THE END OF CLOCK = 3-----
+add x7,x3,x3 | beq x1,x1,lab1 | add x6,x2,x2 | NOP | NOP is run at PC = 8
+x1: 7 x2: 3 x3: 4 
+-----STATUS AT THE END OF CLOCK = 4-----
+add x10,x3,x3 | add x7,x3,x3 | beq x1,x1,lab1 | add x6,x2,x2 | NOP is run at PC = 12
+x1: 7 x2: 3 x3: 4 
+-----STATUS AT THE END OF CLOCK = 5-----
+NOP | NOP | NOP | beq x1,x1,lab1 | add x6,x2,x2 is run at PC = 16
+x1: 7 x2: 3 x3: 4 x6: 6 
+-----STATUS AT THE END OF CLOCK = 6-----
+add x11,x1,x1 | NOP | NOP | NOP | beq x1,x1,lab1 is run at PC = 20
+x1: 7 x2: 3 x3: 4 x6: 6 
+-----STATUS AT THE END OF CLOCK = 7-----
+NOP | add x11,x1,x1 | NOP | NOP | NOP is run at PC = 24
+x1: 7 x2: 3 x3: 4 x6: 6 
+-----STATUS AT THE END OF CLOCK = 8-----
+NOP | NOP | add x11,x1,x1 | NOP | NOP is run at PC = 24
+x1: 7 x2: 3 x3: 4 x6: 6 
+-----STATUS AT THE END OF CLOCK = 9-----
+NOP | NOP | NOP | add x11,x1,x1 | NOP is run at PC = 24
+x1: 7 x2: 3 x3: 4 x6: 6 
+-----STATUS AT THE END OF CLOCK = 10-----
+NOP | NOP | NOP | NOP | add x11,x1,x1 is run at PC = 24
+x1: 7 x2: 3 x3: 4 x6: 6 x11: 14 
+
+-----FINAL REPORT-----
+Total # of Clock Cycles: 10
+Cycles per Instruction(CPI): 3.3333333333333335
+Total # of Stalls: 3
+Instructions and # of Stalls Caused: 
+---> beq x1,x1,lab1: 3
+\end{lstlisting}
+
+
+\section{MEM Hazard Example}
+This is a MEM hazard example. Since the forwarding unit is dealing with the MEM hazard, we see that no stalls are introduced. Therefore, the execution ends in 7 cycles as expected. We see that the final values of the registers are as expected from the correct execution. Which means that the forwarding unit has done its job properly.
+\\
+
+\noindent Input program:
+\vspace{0.5 cm}
+\begin{lstlisting}
+x2=3
+m[3]=7
+x4=5
+---
+ld x1, 0(x2)
+add x3,x2,x2
+add x4, x1, x4
+\end{lstlisting}
+\vspace{0.5 cm}
+Simulator output:
+\vspace{0.5 cm}
+\begin{lstlisting}
+-----STATUS AT THE BEGINNING-----
+NOP | NOP | NOP | NOP | NOP
+x2: 3 x4: 5 m[3]: 7 
+-----STATUS AT THE END OF CLOCK = 1-----
+ld x1, 0(x2) | NOP | NOP | NOP | NOP is run at PC = 0
+x2: 3 x4: 5 m[3]: 7 
+-----STATUS AT THE END OF CLOCK = 2-----
+add x3,x2,x2 | ld x1, 0(x2) | NOP | NOP | NOP is run at PC = 4
+x2: 3 x4: 5 m[3]: 7 
+-----STATUS AT THE END OF CLOCK = 3-----
+add x4, x1, x4 | add x3,x2,x2 | ld x1, 0(x2) | NOP | NOP is run at PC = 8
+x2: 3 x4: 5 m[3]: 7 
+-----STATUS AT THE END OF CLOCK = 4-----
+NOP | add x4, x1, x4 | add x3,x2,x2 | ld x1, 0(x2) | NOP is run at PC = 12
+x2: 3 x4: 5 m[3]: 7 
+-----STATUS AT THE END OF CLOCK = 5-----
+NOP | NOP | add x4, x1, x4 | add x3,x2,x2 | ld x1, 0(x2) is run at PC = 12
+x1: 7 x2: 3 x4: 5 m[3]: 7 
+-----STATUS AT THE END OF CLOCK = 6-----
+NOP | NOP | NOP | add x4, x1, x4 | add x3,x2,x2 is run at PC = 12
+x1: 7 x2: 3 x3: 6 x4: 5 m[3]: 7 
+-----STATUS AT THE END OF CLOCK = 7-----
+NOP | NOP | NOP | NOP | add x4, x1, x4 is run at PC = 12
+x1: 7 x2: 3 x3: 6 x4: 12 m[3]: 7 
+
+-----FINAL REPORT-----
+Total # of Clock Cycles: 7
+Cycles per Instruction(CPI): 2.3333333333333335
+No stall occurred.
+\end{lstlisting}
+
+\section{Double Data Hazard Example}
+This is a double data hazard example. There is a MEM hazard between lines 5 and 7 and there is an EX hazard between the lines 6 and 7. Correct forwarding action is to give priority to the EX hazard and forward the ALU result from the line 6 to the line 7. We see in the output that indeed, forwarding unit of our simulator is correctly forwarding as the final values of the registers are correct and as expected. This example is taken from the Chapter 4 Part 2 Slide 30.
+\\
+
+\noindent Input program:
+\vspace{0.5 cm}
+\begin{lstlisting}
+x2=2
+x3=3
+x4=4
+---
+add x1,x1,x2
+add x1,x1,x3
+add x1,x1,x4
+\end{lstlisting}
+\vspace{0.5 cm}
+Simulator output:
+\vspace{0.5 cm}
+\begin{lstlisting}
+-----STATUS AT THE BEGINNING-----
+NOP | NOP | NOP | NOP | NOP
+x2: 2 x3: 3 x4: 4 
+-----STATUS AT THE END OF CLOCK = 1-----
+add x1,x1,x2 | NOP | NOP | NOP | NOP is run at PC = 0
+x2: 2 x3: 3 x4: 4 
+-----STATUS AT THE END OF CLOCK = 2-----
+add x1,x1,x3 | add x1,x1,x2 | NOP | NOP | NOP is run at PC = 4
+x2: 2 x3: 3 x4: 4 
+-----STATUS AT THE END OF CLOCK = 3-----
+add x1,x1,x4 | add x1,x1,x3 | add x1,x1,x2 | NOP | NOP is run at PC = 8
+x2: 2 x3: 3 x4: 4 
+-----STATUS AT THE END OF CLOCK = 4-----
+NOP | add x1,x1,x4 | add x1,x1,x3 | add x1,x1,x2 | NOP is run at PC = 12
+x2: 2 x3: 3 x4: 4 
+-----STATUS AT THE END OF CLOCK = 5-----
+NOP | NOP | add x1,x1,x4 | add x1,x1,x3 | add x1,x1,x2 is run at PC = 12
+x1: 2 x2: 2 x3: 3 x4: 4 
+-----STATUS AT THE END OF CLOCK = 6-----
+NOP | NOP | NOP | add x1,x1,x4 | add x1,x1,x3 is run at PC = 12
+x1: 5 x2: 2 x3: 3 x4: 4 
+-----STATUS AT THE END OF CLOCK = 7-----
+NOP | NOP | NOP | NOP | add x1,x1,x4 is run at PC = 12
+x1: 9 x2: 2 x3: 3 x4: 4 
+
+-----FINAL REPORT-----
+Total # of Clock Cycles: 7
+Cycles per Instruction(CPI): 2.3333333333333335
+No stall occurred.
+\end{lstlisting}
+
